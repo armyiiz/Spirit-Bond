@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, Monster } from '../types';
+import { GameState } from '../types';
 import { STARTERS } from '../data/monsters';
 import { ITEMS } from '../data/items';
 

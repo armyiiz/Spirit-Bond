@@ -1,6 +1,5 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
-import { ITEMS } from '../data/items';
 import { X } from 'lucide-react';
 
 interface CareModalProps {

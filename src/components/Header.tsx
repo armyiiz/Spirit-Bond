@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
-import { User, Coins, Star } from 'lucide-react';
+import { User, Coins } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { player } = useGameStore();
