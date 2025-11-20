@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGameStore } from './gameStore';
 import { STARTERS } from '../data/monsters';
-import { ITEMS } from '../data/items';
 
 describe('Game Store', () => {
   beforeEach(() => {
