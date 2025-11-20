@@ -1,0 +1,112 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]:
+        - text: Player
+        - generic [ref=e11]: Lv. 1
+    - generic [ref=e13]:
+      - img [ref=e14]
+      - text: "0"
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]: 🐶
+        - generic [ref=e23]:
+          - heading "พัพเปอร์" [level=2] [ref=e24]
+          - generic [ref=e25]: Neutral Type
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: "HP: 100/100"
+          - generic [ref=e29]: "EXP: 0/100"
+        - img [ref=e32]
+        - img [ref=e36]
+        - img [ref=e41]
+    - generic [ref=e43]:
+      - paragraph [ref=e44]: รักษาค่าอารมณ์และความหิวให้น้องอารมณ์ดีอยู่เสมอ
+      - paragraph [ref=e45]: พาน้องไปฝึกฝนเพื่อเพิ่มความแข็งแกร่ง!
+  - generic [ref=e47]:
+    - button "กระเป๋า" [ref=e48]:
+      - img [ref=e50]
+      - text: กระเป๋า
+    - button "วิวัฒนาการ" [ref=e54]:
+      - img [ref=e56]
+      - text: วิวัฒนาการ
+    - button "ดูแล" [ref=e59]:
+      - img [ref=e61]
+      - text: ดูแล
+    - button "ฝึกฝน" [ref=e63]:
+      - img [ref=e65]
+      - text: ฝึกฝน
+    - button "ต่อสู้" [active] [ref=e71]:
+      - img [ref=e73]
+      - text: ต่อสู้
+    - button "สำรวจ" [ref=e82]:
+      - img [ref=e84]
+      - text: สำรวจ
+    - button "ร้านค้า" [ref=e86]:
+      - img [ref=e88]
+      - text: ร้านค้า
+  - generic [ref=e93]:
+    - generic [ref=e94]:
+      - heading "⚔️ Battle Log" [level=2] [ref=e95]
+      - button [ref=e96]:
+        - img [ref=e97]
+    - generic [ref=e100]:
+      - generic [ref=e102]: 🐶
+      - generic [ref=e103]: VS
+      - generic [ref=e105]: 🦠
+    - generic [ref=e106]:
+      - generic [ref=e107]:
+        - generic [ref=e108]: "[23:32]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e109]:
+        - generic [ref=e110]: "[23:32]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e111]:
+        - generic [ref=e112]: "[23:34]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e113]:
+        - generic [ref=e114]: "[23:34]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e115]:
+        - generic [ref=e116]: "[23:36]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e117]:
+        - generic [ref=e118]: "[23:36]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e119]:
+        - generic [ref=e120]: "[23:38]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e121]:
+        - generic [ref=e122]: "[23:38]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e123]:
+        - generic [ref=e124]: "[23:39]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e125]:
+        - generic [ref=e126]: "[23:39]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e127]:
+        - generic [ref=e128]: "[23:43]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e129]:
+        - generic [ref=e130]: "[23:43]"
+        - text: Slime โจมตีสวนกลับ! (1 dmg)
+      - generic [ref=e131]:
+        - generic [ref=e132]: "[23:43]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e133]:
+        - generic [ref=e134]: "[23:43]"
+        - text: พัพเปอร์ โจมตี! (15 dmg)
+      - generic [ref=e135]:
+        - generic [ref=e136]: "[23:43]"
+        - text: ชนะการต่อสู้!
+      - generic [ref=e137]:
+        - generic [ref=e138]: "[23:43]"
+        - text: "ได้รับ: เนื้อติดกระดูก x1"
+    - button "รับรางวัล & กลับ" [ref=e140]
+```
