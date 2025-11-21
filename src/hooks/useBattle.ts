@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { Monster, ElementType } from '../types';
+import { Monster } from '../types';
 import { MONSTER_DB } from '../data/monsters';
 
 export interface LogEntry {
@@ -50,8 +50,17 @@ export const useBattle = () => {
     const randomIndex = Math.floor(Math.random() * MONSTER_DB.length);
     const baseEnemy = MONSTER_DB[randomIndex];
 
-    // 2. Determine Level (Player Level +/- 3, min 1)
-    const levelDiff = Math.floor(Math.random() * 7) - 3; // -3 to +3
+    // 2. Determine Level (New Logic)
+    const rand = Math.random();
+    let levelDiff = 0;
+    if (rand < 0.5) {
+      levelDiff = 0; // 50% Equal
+    } else if (rand < 0.8) {
+      levelDiff = -1; // 30% Weaker
+    } else {
+      levelDiff = 1; // 20% Stronger
+    }
+
     const enemyLevel = Math.max(1, myMonster.level + levelDiff);
 
     // 3. Scale Stats
@@ -70,6 +79,7 @@ export const useBattle = () => {
       ...baseEnemy,
       level: enemyLevel,
       stats: scaledStats,
+      poopCount: 0 // Enemy doesn't poop in battle context usually, but needed for type
     };
 
     setEnemy(finalEnemy);
@@ -191,7 +201,7 @@ export const useBattle = () => {
         clearInterval(battleInterval.current);
       }
     };
-  }, [isActive, myMonster, enemy, updateVitals, gainRewards]); // Removed Hp/Gauge from dependencies
+  }, [isActive, myMonster, enemy, updateVitals, gainRewards]);
 
   return {
     isActive,

@@ -26,6 +26,7 @@ export interface Monster {
   maxExp: number;
   stats: Stats;
   vitals: Vitals;
+  poopCount?: number; // Optional for static data
   appearance: {
     emoji: string;
     color: string; // Tailwind color class e.g. "bg-red-500"
@@ -73,6 +74,8 @@ export interface GameState {
   addItem: (itemId: string, count: number) => void;
   useItem: (itemId: string) => void;
   trainMonster: () => { stat: string; value: number } | undefined;
+  feedGeneric: () => void;
+  cleanPoop: () => void;
   gainRewards: (exp: number, gold: number) => void;
   setLastSaveTime: (time: number) => void;
 }
