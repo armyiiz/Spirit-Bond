@@ -1,218 +1,193 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { Monster } from '../types';
 import { MONSTER_DB } from '../data/monsters';
+import { Monster } from '../types';
 
-export interface LogEntry {
-  id: number;
-  text: string;
-  color: string;
-}
-
+export type BattleState = 'idle' | 'fighting' | 'victory' | 'defeat';
+export interface LogEntry { id: number; text: string; color: string; }
 export type BattleResult = 'win' | 'lose' | 'fled' | null;
 
 export const useBattle = () => {
-  const { myMonster, updateVitals, gainRewards } = useGameStore();
+  const { myMonster, updateVitals, gainRewards, setMyMonster } = useGameStore();
 
-  // Battle State
   const [isActive, setIsActive] = useState(false);
+  const [result, setResult] = useState<BattleResult>(null);
+  const [enemy, setEnemy] = useState<Monster | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  const [playerGauge, setPlayerGauge] = useState(0);
-  const [enemyGauge, setEnemyGauge] = useState(0);
-  const [playerHp, setPlayerHp] = useState(0);
-
-  // Enemy State
-  const [enemy, setEnemy] = useState<Monster | null>(null);
-  const [enemyHp, setEnemyHp] = useState(0);
-
-  const [result, setResult] = useState<BattleResult>(null);
-
-  // Refs for logic (prevent re-creating interval)
-  const battleInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Use Refs for Logic Loop
   const playerHpRef = useRef(0);
   const enemyHpRef = useRef(0);
   const playerGaugeRef = useRef(0);
   const enemyGaugeRef = useRef(0);
 
-  const addLog = (text: string, color: string = 'text-slate-300') => {
-    setLogs(prev => [...prev, { id: Date.now(), text, color }]);
-  };
+  // UI State (Sync with Refs for display)
+  const [playerHp, setPlayerHp] = useState(0);
+  const [enemyHp, setEnemyHp] = useState(0);
+  const [playerGauge, setPlayerGauge] = useState(0); // Added for UI
+  const [enemyGauge, setEnemyGauge] = useState(0); // Added for UI
 
-  const startBattle = () => {
+  const addLog = useCallback((text: string, color: string = 'text-slate-400') => {
+    setLogs(prev => [...prev.slice(-4), { id: Date.now(), text, color }]);
+  }, []);
+
+  const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    // Reset State
-    setResult(null);
-    setLogs([]);
+    // 1. Logic: Filter ศัตรูเฉพาะ Stage เดียวกัน (User Request #4)
+    const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
+    // Fallback ถ้าไม่เจอ (กันเหนียว) ใช้ DB ทั้งหมด
+    const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
 
-    // 1. Pick Random Enemy from Pool
-    const randomIndex = Math.floor(Math.random() * MONSTER_DB.length);
-    const baseEnemy = MONSTER_DB[randomIndex];
+    const randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
 
-    // 2. Determine Level (New Logic)
+    // 2. Level Logic (User Request: เท่ากัน 50%, -1 30%, +1 20%)
     const rand = Math.random();
     let levelDiff = 0;
-    if (rand < 0.5) {
-      levelDiff = 0; // 50% Equal
-    } else if (rand < 0.8) {
-      levelDiff = -1; // 30% Weaker
-    } else {
-      levelDiff = 1; // 20% Stronger
-    }
+    if (rand < 0.5) levelDiff = 0;
+    else if (rand < 0.8) levelDiff = -1;
+    else levelDiff = 1;
 
     const enemyLevel = Math.max(1, myMonster.level + levelDiff);
 
-    // 3. Scale Stats
+    // Scale Stats
     const scale = 1 + ((enemyLevel - 1) * 0.1);
-
-    const scaledStats = {
-      hp: Math.floor(baseEnemy.stats.hp * scale),
-      maxHp: Math.floor(baseEnemy.stats.maxHp * scale),
-      atk: Math.floor(baseEnemy.stats.atk * scale),
-      def: Math.floor(baseEnemy.stats.def * scale),
-      spd: Math.floor(baseEnemy.stats.spd * scale),
-      luk: Math.floor(baseEnemy.stats.luk * scale),
-    };
-
-    const finalEnemy: Monster = {
-      ...baseEnemy,
+    const newEnemy: Monster = {
+      ...randomBase,
       level: enemyLevel,
-      stats: scaledStats,
-      poopCount: 0 // Enemy doesn't poop in battle context usually, but needed for type
+      stats: {
+        hp: Math.floor(randomBase.stats.hp * scale),
+        maxHp: Math.floor(randomBase.stats.maxHp * scale),
+        atk: Math.floor(randomBase.stats.atk * scale),
+        def: Math.floor(randomBase.stats.def * scale),
+        spd: Math.floor(randomBase.stats.spd * scale),
+        luk: Math.floor(randomBase.stats.luk * scale),
+      },
+      vitals: { ...randomBase.vitals }, // Important fix for structure
+      poopCount: 0
     };
 
-    setEnemy(finalEnemy);
+    // Setup Battle
+    setEnemy(newEnemy);
 
-    // Initialize Refs
-    playerHpRef.current = myMonster.stats.hp;
-    enemyHpRef.current = finalEnemy.stats.maxHp;
+    // Player setup
+    playerHpRef.current = myMonster.stats.hp; // ใช้ HP ปัจจุบัน (ไม่เต็มก็สู้ต่อได้)
+    setPlayerHp(myMonster.stats.hp);
     playerGaugeRef.current = 0;
-    enemyGaugeRef.current = 0;
-
-    // Sync State
-    setPlayerHp(playerHpRef.current);
-    setEnemyHp(enemyHpRef.current);
     setPlayerGauge(0);
+
+    // Enemy setup
+    enemyHpRef.current = newEnemy.stats.maxHp;
+    setEnemyHp(newEnemy.stats.maxHp);
+    enemyGaugeRef.current = 0;
     setEnemyGauge(0);
 
-    addLog(`ศัตรูปรากฏตัว! ${finalEnemy.name} (Lv.${finalEnemy.level})`, 'text-red-400 font-bold');
-
-    // Start Loop
+    setLogs([]);
+    setResult(null);
     setIsActive(true);
-  };
 
-  const stopBattle = () => {
+    addLog(`⚔️ พบศัตรู: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
+  }, [myMonster, addLog]);
+
+  const endBattle = useCallback((finalResult: 'win' | 'lose' | 'fled') => {
     setIsActive(false);
-    if (battleInterval.current) {
-      clearInterval(battleInterval.current);
-      battleInterval.current = null;
-    }
-  };
+    setResult(finalResult);
 
-  const fleeBattle = () => {
-    if (!isActive) return;
-    stopBattle();
-    setResult('fled');
-    addLog('คุณหนีจากการต่อสู้!', 'text-slate-400');
-  };
+    if (finalResult === 'win') {
+       // Win Logic
+       if (enemy) {
+          const gold = enemy.level * 10;
+          const exp = enemy.level * 20;
+          addLog(`🏆 ชนะ! ได้รับ ${gold}G, ${exp}EXP`, 'text-yellow-400');
+          gainRewards(exp, gold);
+          updateVitals({ hunger: -2, energy: -5 });
+
+          // Update Real HP back to store
+          if (myMonster) {
+             setMyMonster({
+                ...myMonster,
+                stats: { ...myMonster.stats, hp: playerHpRef.current }
+             });
+          }
+       }
+    } else if (finalResult === 'lose') {
+       // Lose Logic
+       addLog('💀 พ่ายแพ้... (HP เหลือ 1)', 'text-red-600');
+       updateVitals({ mood: -20, energy: -10 });
+       // Fix #1: ไม่ฮีลเต็มแล้ว! ให้เหลือ 1 HP พอให้เดินกลับบ้าน
+       if (myMonster) {
+          setMyMonster({
+             ...myMonster,
+             stats: { ...myMonster.stats, hp: 1 }
+          });
+       }
+    } else {
+        // Fled
+        addLog('💨 หนีสำเร็จ!', 'text-slate-400');
+        updateVitals({ energy: -5 }); // Cost for fleeing
+    }
+  }, [enemy, gainRewards, updateVitals, myMonster, setMyMonster, addLog]);
 
   // Battle Loop
   useEffect(() => {
     if (!isActive || !myMonster || !enemy) return;
 
-    const tickRate = 100; // 100ms per tick
-    const gaugeMax = 100;
+    const interval = setInterval(() => {
+       // Check End
+       if (playerHpRef.current <= 0) {
+         endBattle('lose');
+         return;
+       }
+       if (enemyHpRef.current <= 0) {
+         endBattle('win');
+         return;
+       }
 
-    battleInterval.current = setInterval(() => {
-      let currentPlayerHp = playerHpRef.current;
-      let currentEnemyHp = enemyHpRef.current;
-      let currentPlayerGauge = playerGaugeRef.current;
-      let currentEnemyGauge = enemyGaugeRef.current;
+       // Logic Tick
+       // Player Gauge
+       playerGaugeRef.current += (myMonster.stats.spd * 0.1);
+       if (playerGaugeRef.current >= 100) {
+          playerGaugeRef.current = 0;
+          // Attack
+          const dmg = Math.max(1, Math.floor(myMonster.stats.atk - (enemy.stats.def * 0.5)));
+          enemyHpRef.current -= dmg;
+          setEnemyHp(enemyHpRef.current); // Update UI
+          addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
+       }
 
-      // Check end conditions
-      if (currentPlayerHp <= 0) {
-        stopBattle();
-        setResult('lose');
-        addLog('พ่ายแพ้...', 'text-red-500 font-bold text-lg');
-        updateVitals({ hunger: -10, energy: -10, mood: -10 });
-        return;
-      }
+       // Enemy Gauge
+       enemyGaugeRef.current += (enemy.stats.spd * 0.1);
+       if (enemyGaugeRef.current >= 100) {
+          enemyGaugeRef.current = 0;
+          // Enemy Attack
+          const dmg = Math.max(1, Math.floor(enemy.stats.atk - (myMonster.stats.def * 0.5)));
+          playerHpRef.current -= dmg;
+          setPlayerHp(playerHpRef.current); // Update UI
+          addLog(`${enemy.name} สวนกลับ! (-${dmg})`, 'text-orange-400');
+       }
 
-      if (currentEnemyHp <= 0) {
-        stopBattle();
-        setResult('win');
-        addLog('ชนะการต่อสู้!', 'text-yellow-400 font-bold text-lg');
+       // Sync Gauges to UI (optional, for smoother bars might want requestAnimationFrame but this is fine)
+       setPlayerGauge(playerGaugeRef.current);
+       setEnemyGauge(enemyGaugeRef.current);
 
-        // Calculate Rewards
-        const goldReward = enemy.level * 10;
-        const expReward = enemy.level * 20;
+    }, 100);
 
-        addLog(`ได้รับ: ${goldReward} Gold, ${expReward} EXP`, 'text-emerald-400');
-        gainRewards(expReward, goldReward);
-        updateVitals({ hunger: -5, energy: -5 });
-        return;
-      }
-
-      // --- Logic ---
-
-      // 1. Player Gauge Increase
-      currentPlayerGauge += (myMonster.stats.spd * 0.15);
-      if (currentPlayerGauge >= gaugeMax) {
-        // Player Attack
-        const rawDmg = Math.max(1, myMonster.stats.atk - (enemy.stats.def * 0.5));
-        const finalDmg = Math.floor(rawDmg);
-
-        currentEnemyHp -= finalDmg;
-        addLog(`${myMonster.name} โจมตี! (${finalDmg} dmg)`, 'text-emerald-400');
-
-        currentPlayerGauge = 0; // Reset Gauge
-      }
-
-      // 2. Enemy Gauge Increase
-      currentEnemyGauge += (enemy.stats.spd * 0.15);
-      if (currentEnemyGauge >= gaugeMax) {
-        // Enemy Attack
-        const rawDmg = Math.max(1, enemy.stats.atk - (myMonster.stats.def * 0.5));
-        const finalDmg = Math.floor(rawDmg);
-
-        currentPlayerHp -= finalDmg;
-        addLog(`${enemy.name} โจมตีสวนกลับ! (${finalDmg} dmg)`, 'text-red-400');
-
-        currentEnemyGauge = 0; // Reset Gauge
-      }
-
-      // Update Refs
-      playerHpRef.current = currentPlayerHp;
-      enemyHpRef.current = currentEnemyHp;
-      playerGaugeRef.current = currentPlayerGauge;
-      enemyGaugeRef.current = currentEnemyGauge;
-
-      // Sync UI (React State)
-      setPlayerHp(currentPlayerHp);
-      setEnemyHp(currentEnemyHp);
-      setPlayerGauge(currentPlayerGauge);
-      setEnemyGauge(currentEnemyGauge);
-
-    }, tickRate);
-
-    return () => {
-      if (battleInterval.current) {
-        clearInterval(battleInterval.current);
-      }
-    };
-  }, [isActive, myMonster, enemy, updateVitals, gainRewards]);
+    return () => clearInterval(interval);
+  }, [isActive, myMonster, enemy, endBattle, addLog]);
 
   return {
     isActive,
     result,
-    logs,
+    enemy,
     playerHp,
     enemyHp,
-    playerGauge,
-    enemyGauge,
-    enemy,
+    logs,
     startBattle,
-    fleeBattle
+    fleeBattle: () => endBattle('fled'),
+    resetBattle: () => {
+      setIsActive(false);
+      setResult(null);
+      setEnemy(null);
+    }
   };
 };

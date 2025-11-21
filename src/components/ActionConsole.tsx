@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath } from 'lucide-react';
+import { EVOLUTIONS } from '../data/monsters';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut } from 'lucide-react';
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -18,7 +19,7 @@ interface ActionConsoleProps {
 }
 
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle }) => {
-  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop } = useGameStore();
+  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
@@ -60,6 +61,20 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
          setTrainingResult(result);
      }
   };
+
+  // 6. SLEEP OVERLAY
+  if (isSleeping && mode !== 'settings') { // Allow entering settings even if sleeping
+     return (
+       <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
+          <Moon size={48} className="text-blue-200 mb-4" />
+          <h2 className="text-xl text-blue-100 font-bold">กำลังนอนพัก...</h2>
+          <p className="text-xs text-slate-400 mt-2">HP และพลังงานกำลังฟื้นฟู</p>
+          <button onClick={toggleSleep} className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-full border border-slate-600 hover:bg-slate-700">
+             <Sun size={16} className="inline mr-2"/> ตื่นนอน
+          </button>
+       </div>
+     );
+  }
 
   // --- Render Views ---
 
@@ -128,6 +143,16 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
               <span className="text-sm font-bold">อาบน้ำ</span>
               <span className="text-[10px] text-slate-400">+Mood</span>
            </button>
+
+           {/* New Sleep Button */}
+            <button onClick={toggleSleep} className="col-span-2 bg-indigo-900/50 hover:bg-indigo-800/50 p-3 rounded-xl flex items-center justify-center gap-2 border border-indigo-700">
+               <Moon className="text-indigo-300" />
+               <div>
+                 <div className="text-sm font-bold text-indigo-100">นอนพักผ่อน</div>
+                 <div className="text-[10px] text-indigo-400">ฟื้นฟู HP/Energy (ใช้เวลา)</div>
+               </div>
+            </button>
+
            {poopCount > 0 && (
              <button onClick={cleanPoop} className="col-span-2 bg-slate-800 hover:bg-red-900/30 p-3 rounded-xl flex items-center justify-center gap-2 border border-red-900/50">
                 <Trash2 className="text-red-400" />
@@ -160,36 +185,39 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // 4. EVO VIEW (Wiki)
+  // 4. EVO VIEW (Real Logic)
   if (mode === 'evo') {
-    return (
+     if (!myMonster) return null;
+     // Filter หาตัวที่เป็น Evo ของ Species เรา
+     // สมมติ Logic: Evo ID จะมีชื่อ Starter อยู่ใน ID (เช่น 'evo_pupper_terra')
+     // หรือเช็คจาก speciesId range ก็ได้ (Starter 1-10, Evo 11-19)
+
+     // วิธีง่ายสุดสำหรับ Data ชุดนี้: เช็คว่าชื่อ ID ของ Evo มีคำว่าชื่อ Starter เราไหม
+     // เช่น myMonster.id = 'starter_pupper' -> หาคำว่า 'pupper' ใน Evo list
+     const baseName = myMonster.id.replace('starter_', '').replace('evo_', '').split('_')[0];
+     const possibleEvos = EVOLUTIONS.filter(e => e.id.includes(baseName));
+
+     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
          <div className="flex justify-between items-center mb-2">
-           <h3 className="font-bold text-purple-400">🧬 วิวัฒนาการ</h3>
+           <h3 className="font-bold text-purple-400">🧬 วิวัฒนาการ ({possibleEvos.length} ร่าง)</h3>
            <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
          </div>
-         <div className="flex-1 overflow-y-auto space-y-2 text-sm">
-            {/* Mockup Evo List */}
-            <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center opacity-50">
-               <div className="flex items-center gap-2">
-                  <span className="text-xl">🪨</span>
-                  <div>
-                    <div className="font-bold">Terra Form</div>
-                    <div className="text-[10px] text-slate-400">Requires: Lv.5 + Terra Stone</div>
+         <div className="flex-1 overflow-y-auto space-y-2">
+            {possibleEvos.map(evo => (
+               <div key={evo.id} className="bg-slate-800 p-3 rounded-lg flex justify-between items-center border border-slate-700">
+                  <div className="flex items-center gap-3">
+                     <div className="text-2xl bg-slate-700 w-10 h-10 flex items-center justify-center rounded-full">?</div>
+                     <div>
+                       <div className="font-bold text-slate-200">{evo.element} Form</div>
+                       <div className="text-[10px] text-slate-400">Req: Lv.10 + {evo.element} Stone</div>
+                     </div>
                   </div>
+                  {/* ปุ่ม Evolve (Disable ไว้ก่อน) */}
+                  <button disabled className="px-3 py-1 bg-slate-900 text-slate-600 text-xs rounded border border-slate-800">Locked</button>
                </div>
-               <div className="text-xs text-slate-500">Locked</div>
-            </div>
-            <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center opacity-50">
-               <div className="flex items-center gap-2">
-                  <span className="text-xl">⚡</span>
-                  <div>
-                    <div className="font-bold">Aero Form</div>
-                    <div className="text-[10px] text-slate-400">Requires: Lv.5 + Aero Stone</div>
-                  </div>
-               </div>
-               <div className="text-xs text-slate-500">Locked</div>
-            </div>
+            ))}
+            {possibleEvos.length === 0 && <div className="text-center text-slate-500 mt-10">ร่างนี้สุดยอดแล้ว! พัฒนาต่อไม่ได้</div>}
          </div>
       </div>
     );
@@ -287,8 +315,32 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // Placeholders for Shop, Explore, Settings
-  if (['shop', 'explore', 'settings'].includes(mode)) {
+  // 7. SETTINGS VIEW
+  if (mode === 'settings') {
+    return (
+      <div className="h-full bg-slate-900 p-4 flex flex-col gap-4">
+         <h3 className="font-bold text-slate-400">⚙️ ตั้งค่า</h3>
+
+         <button onClick={() => window.location.reload()} className="w-full p-3 bg-slate-800 rounded-lg flex items-center gap-3 hover:bg-slate-700 text-slate-200">
+            <LogOut size={20} /> กลับหน้าเมนูหลัก (Reload)
+         </button>
+
+         <div className="mt-auto pt-4 border-t border-slate-800">
+            <button
+              onClick={() => {
+                 if(confirm('ลบเซฟจริงๆ นะ? หายหมดเลยนะ!')) resetSave();
+              }}
+              className="w-full p-3 bg-red-900/20 border border-red-900/50 rounded-lg flex items-center justify-center gap-2 hover:bg-red-900/40 text-red-400"
+            >
+               <Trash2 size={20} /> ลบเซฟเริ่มเล่นใหม่
+            </button>
+         </div>
+      </div>
+    );
+  }
+
+  // Placeholders for Shop, Explore
+  if (['shop', 'explore'].includes(mode)) {
      return (
         <div className="h-full bg-slate-900 p-4 flex flex-col items-center justify-center text-center">
            <h3 className="font-bold text-xl text-slate-500 uppercase mb-2">{mode}</h3>

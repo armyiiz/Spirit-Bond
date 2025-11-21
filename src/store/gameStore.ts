@@ -18,6 +18,7 @@ export const useGameStore = create<GameState>()(
          { item: ITEMS['food_apple'], count: 2 }
       ],
       lastSaveTime: Date.now(),
+      isSleeping: false, // Initial state
 
       startGame: (starterSpeciesId: number) => {
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
@@ -35,32 +36,49 @@ export const useGameStore = create<GameState>()(
         set({ lastSaveTime: time });
       },
 
+      setMyMonster: (m) => set({ myMonster: m }),
+
+      toggleSleep: () => {
+         const current = get().isSleeping;
+         set({ isSleeping: !current });
+      },
+
       tick: () => {
         const state = get();
         const monster = state.myMonster;
         if (!monster) return;
 
-        const newVitals = { ...monster.vitals };
+        let newVitals = { ...monster.vitals };
+        let newHp = monster.stats.hp;
 
-        // Energy Regen (Max 100, +1 per tick)
-        if (newVitals.energy < 100) {
-          newVitals.energy = Math.min(100, newVitals.energy + 1);
-        }
+        // Sleep Logic (User Request #6)
+        if (state.isSleeping) {
+           // Heal HP rapidly (e.g. 2% of max per tick)
+           // If tick is 10s, 100% takes ~500s (approx 8.3 mins)
+           const healAmount = Math.ceil(monster.stats.maxHp * 0.02);
+           newHp = Math.min(monster.stats.maxHp, newHp + healAmount);
 
-        // Hunger Decrease (-0.5 per tick, min 0)
-        if (newVitals.hunger > 0) {
-          newVitals.hunger = Math.max(0, newVitals.hunger - 0.5);
+           // Energy Regen
+           newVitals.energy = Math.min(100, newVitals.energy + 2);
+        } else {
+           // Normal Passive Logic
+           if (newVitals.energy < 100) newVitals.energy += 0.5;
+           if (newVitals.hunger > 0) newVitals.hunger -= 0.2; // Changed to 0.2 as per plan
         }
 
         // Poop Chance (0.5% per tick)
         let newPoopCount = monster.poopCount || 0;
-        if (Math.random() < 0.005) {
+        // Don't poop while sleeping? User didn't specify, but usually tamagotchis don't poop while sleeping.
+        // I'll keep it simple and allow poop for now unless it becomes an issue, or disable it if logic dictates.
+        // Actually, let's disable poop while sleeping to be nice.
+        if (!state.isSleeping && Math.random() < 0.005) {
            newPoopCount = Math.min(5, newPoopCount + 1);
         }
 
         set({
           myMonster: {
             ...monster,
+            stats: { ...monster.stats, hp: newHp },
             vitals: newVitals,
             poopCount: newPoopCount
           } as Monster
@@ -83,6 +101,11 @@ export const useGameStore = create<GameState>()(
             vitals: newVitals
           }
         });
+      },
+
+      resetSave: () => {
+         localStorage.removeItem('spirit-bond-storage');
+         window.location.reload(); // Brute force reset
       },
 
       addItem: (itemId, count) => {

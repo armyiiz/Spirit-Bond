@@ -3,6 +3,7 @@ import { useGameStore } from './store/gameStore';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useBattle } from './hooks/useBattle';
 
+import MainMenu from './components/MainMenu';
 import StarterSelection from './components/StarterSelection';
 import Header from './components/Header';
 import MonsterStage from './components/MonsterStage';
@@ -12,6 +13,7 @@ import StatusStrip from './components/StatusStrip';
 
 function App() {
   const { myMonster } = useGameStore();
+  const [isInGame, setIsInGame] = useState(false);
   const [consoleMode, setConsoleMode] = useState<ConsoleMode>('idle');
 
   // Battle Hook
@@ -42,19 +44,25 @@ function App() {
     // useBattle handles stop internally on win/lose.
   };
 
-  // If no monster, show selection
+  // 1. Main Menu Logic
+  if (!isInGame) {
+     return <MainMenu onStart={() => setIsInGame(true)} />;
+  }
+
+  // 2. Starter Selection Logic (if new game)
   if (!myMonster) {
     return <StarterSelection />;
   }
 
+  // 3. Main Game Loop
   return (
     <div className="h-[100dvh] bg-slate-900 text-white flex flex-col relative max-w-md mx-auto shadow-2xl overflow-hidden">
-      {/* 1. Header (Player Info) */}
+      {/* Header (Player Info) */}
       <div className="flex-none z-20">
         <Header />
       </div>
 
-      {/* 2. Top Navigation */}
+      {/* Top Navigation */}
       <div className="flex-none z-20">
         <TopNavigation
           onModeChange={handleModeChange}
@@ -62,7 +70,7 @@ function App() {
         />
       </div>
 
-      {/* 3. Monster Stage (Flexible Middle) */}
+      {/* Monster Stage (Flexible Middle) */}
       <div className="flex-1 bg-slate-800 relative overflow-hidden flex flex-col">
          <MonsterStage
            background="bg-slate-900"
@@ -74,7 +82,7 @@ function App() {
          )}
       </div>
 
-      {/* 4. Status Strip (The Middle Bar) */}
+      {/* Status Strip (The Middle Bar) */}
       <StatusStrip
          myMonster={myMonster}
          enemy={battle.enemy}
@@ -83,7 +91,7 @@ function App() {
          enemyHp={battle.enemyHp}
       />
 
-      {/* 5. Action Console (Fixed Bottom) */}
+      {/* Action Console (Fixed Bottom) */}
       <div className="flex-none h-[40vh] min-h-[250px] z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <ActionConsole
           mode={consoleMode === 'battle' ? 'battle' : consoleMode}
