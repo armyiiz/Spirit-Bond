@@ -18,8 +18,6 @@ const MonsterStage: React.FC<MonsterStageProps> = ({ background, battleState, on
 
   const { stats, appearance, level } = monster;
 
-  // If battle is active, use battle HP, otherwise use store HP
-  // Actually, store HP should be synced eventually, but for visuals let's use battle state if active
   const currentHp = battleState.isActive ? battleState.playerHp : stats.hp;
   const maxHp = battleState.isActive ? battleState.playerMaxHp : stats.maxHp;
 
