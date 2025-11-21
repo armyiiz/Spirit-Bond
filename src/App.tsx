@@ -72,7 +72,11 @@ function App() {
 
       {/* 2. Top Navigation */}
       <div className="flex-none z-20">
-        <TopNavigation onModeChange={handleModeChange} onOpenModal={handleOpenModal} />
+        <TopNavigation
+          onModeChange={handleModeChange}
+          onOpenModal={handleOpenModal}
+          disabled={consoleMode === 'battle'}
+        />
       </div>
 
       {/* 3. Monster Stage (Flexible Middle) */}
@@ -82,6 +86,8 @@ function App() {
         enemy={battle.isActive ? battle.enemy : null}
         enemyHp={battle.enemyHp}
         enemyMaxHp={battle.enemy?.stats.maxHp}
+        playerHp={consoleMode === 'battle' ? battle.playerHp : undefined}
+        playerMaxHp={myMonster.stats.maxHp}
       />
 
       {/* 4. Action Console (Fixed Bottom) */}

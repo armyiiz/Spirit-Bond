@@ -72,7 +72,7 @@ export interface GameState {
   updateVitals: (delta: Partial<Vitals>) => void;
   addItem: (itemId: string, count: number) => void;
   useItem: (itemId: string) => void;
-  trainMonster: () => void;
+  trainMonster: () => { stat: string; value: number } | undefined;
   gainRewards: (exp: number, gold: number) => void;
   setLastSaveTime: (time: number) => void;
 }

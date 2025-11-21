@@ -7,9 +7,10 @@ export type ModalType = 'bag' | 'evo' | 'explore' | 'shop' | 'settings' | 'statu
 interface TopNavigationProps {
   onModeChange: (mode: ConsoleMode) => void;
   onOpenModal: (modal: ModalType) => void;
+  disabled?: boolean;
 }
 
-const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, onOpenModal }) => {
+const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, onOpenModal, disabled }) => {
   const buttons = [
     { id: 'battle', label: 'ต่อสู้', icon: Swords, color: 'text-red-400', type: 'console', target: 'battle' },
     { id: 'train', label: 'ฝึกฝน', icon: Dumbbell, color: 'text-orange-400', type: 'console', target: 'train' },
@@ -22,6 +23,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, onOpenModal
   ] as const;
 
   const handleClick = (btn: typeof buttons[number]) => {
+    if (disabled) return;
     if (btn.type === 'console') {
       onModeChange(btn.target as ConsoleMode);
     } else {
@@ -37,7 +39,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, onOpenModal
             key={btn.id}
             data-testid={`nav-btn-${btn.id}`}
             onClick={() => handleClick(btn)}
-            className="flex flex-col items-center justify-center gap-1 p-2 hover:bg-slate-800 rounded-xl transition-colors"
+            disabled={disabled}
+            className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-800'}`}
           >
             <div className={`p-1.5 rounded-full bg-slate-800/50 border border-slate-700 ${btn.color}`}>
               <btn.icon size={18} />
