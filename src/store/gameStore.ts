@@ -120,16 +120,21 @@ export const useGameStore = create<GameState>()(
          const picked = stats[Math.floor(Math.random() * stats.length)];
 
          const newStats = { ...monster.stats };
+         let gainedValue = 1;
+
          if (picked === 'hp') {
-             newStats.maxHp += 5;
-             newStats.hp += 5;
+             gainedValue = 5;
+             newStats.maxHp += gainedValue;
+             newStats.hp += gainedValue;
          } else {
-             newStats[picked] += 1;
+             newStats[picked] += gainedValue;
          }
 
          set(s => ({
            myMonster: s.myMonster ? { ...s.myMonster, stats: newStats } : null
          }));
+
+         return { stat: picked, value: gainedValue };
       },
 
       gainRewards: (exp: number, gold: number) => {

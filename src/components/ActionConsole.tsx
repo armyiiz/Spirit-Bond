@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { ScrollText } from 'lucide-react';
@@ -21,6 +21,8 @@ interface ActionConsoleProps {
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle }) => {
   const { myMonster, inventory, useItem, updateVitals, trainMonster } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
+  const [canCloseBattle, setCanCloseBattle] = useState(false);
 
   const scrollToBottom = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,6 +33,34 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
       scrollToBottom();
     }
   }, [battleState?.logs, mode]);
+
+  // Handle Battle End Delay
+  useEffect(() => {
+    if (mode === 'battle' && battleState?.result && !battleState.isActive) {
+      setCanCloseBattle(false);
+      const timer = setTimeout(() => {
+        setCanCloseBattle(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [mode, battleState?.result, battleState?.isActive]);
+
+  // Reset local state when mode changes
+  useEffect(() => {
+    if (mode !== 'train') {
+        setTrainingResult(null);
+    }
+    if (mode !== 'battle') {
+        setCanCloseBattle(false);
+    }
+  }, [mode]);
+
+  const handleTrain = () => {
+     const result = trainMonster();
+     if (result) {
+         setTrainingResult(result);
+     }
+  };
 
   // --- Render Views ---
 
@@ -90,7 +120,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
            <h3 className="font-bold text-orange-400 flex items-center gap-2">🏋️ ฝึกฝน</h3>
            <button onClick={onReturnToIdle} className="text-xs text-slate-500 underline hover:text-slate-300">Close</button>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-4">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-4 relative">
             <div className="text-center">
                <p className="text-slate-400 text-xs mb-2">ใช้ 20 Energy เพื่อเพิ่มค่าสถานะแบบสุ่ม</p>
                <div className="flex items-center justify-center gap-2 text-sm">
@@ -101,8 +131,16 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                </div>
             </div>
 
+            {/* Feedback Toast */}
+            {trainingResult && (
+                <div className="absolute top-16 animate-in fade-in zoom-in duration-300 bg-slate-800/90 border border-orange-500/50 px-4 py-2 rounded-lg text-center shadow-xl">
+                    <div className="text-orange-400 font-bold text-lg uppercase">{trainingResult.stat} +{trainingResult.value}</div>
+                    <div className="text-xs text-slate-400">สำเร็จ!</div>
+                </div>
+            )}
+
             <button
-              onClick={trainMonster}
+              onClick={handleTrain}
               disabled={!canTrain}
               className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
                  canTrain
@@ -136,14 +174,20 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
          {/* Controls */}
          <div className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
             {!isActive && result ? (
-               <button
-                 onClick={onReturnToIdle}
-                 className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg ${
-                   result === 'win' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-slate-700 text-white hover:bg-slate-600'
-                 }`}
-               >
-                 {result === 'win' ? 'Victory! (Close)' : 'Defeated... (Close)'}
-               </button>
+               canCloseBattle ? (
+                <button
+                    onClick={onReturnToIdle}
+                    className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg animate-in fade-in zoom-in duration-300 ${
+                    result === 'win' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-slate-700 text-white hover:bg-slate-600'
+                    }`}
+                >
+                    {result === 'win' ? 'Victory! (Close)' : 'Defeated... (Close)'}
+                </button>
+               ) : (
+                 <div className="flex-1 py-3 text-center text-slate-500 text-xs italic animate-pulse">
+                    Processing results...
+                 </div>
+               )
             ) : (
               <button
                  data-testid="battle-flee-btn"

@@ -28,8 +28,12 @@ export const useBattle = () => {
 
   const [result, setResult] = useState<BattleResult>(null);
 
-  // Refs for interval management
+  // Refs for logic (prevent re-creating interval)
   const battleInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playerHpRef = useRef(0);
+  const enemyHpRef = useRef(0);
+  const playerGaugeRef = useRef(0);
+  const enemyGaugeRef = useRef(0);
 
   const addLog = (text: string, color: string = 'text-slate-300') => {
     setLogs(prev => [...prev, { id: Date.now(), text, color }]);
@@ -38,12 +42,9 @@ export const useBattle = () => {
   const startBattle = () => {
     if (!myMonster) return;
 
-    setIsActive(true);
+    // Reset State
     setResult(null);
     setLogs([]);
-    setPlayerGauge(0);
-    setEnemyGauge(0);
-    setPlayerHp(myMonster.stats.hp);
 
     // 1. Pick Random Enemy from Pool
     const randomIndex = Math.floor(Math.random() * MONSTER_DB.length);
@@ -54,7 +55,6 @@ export const useBattle = () => {
     const enemyLevel = Math.max(1, myMonster.level + levelDiff);
 
     // 3. Scale Stats
-    // Formula: BaseStat * (1 + ((Level - 1) * 0.1))
     const scale = 1 + ((enemyLevel - 1) * 0.1);
 
     const scaledStats = {
@@ -70,22 +70,26 @@ export const useBattle = () => {
       ...baseEnemy,
       level: enemyLevel,
       stats: scaledStats,
-      // Vitals and exp don't matter much for enemy AI currently
     };
 
     setEnemy(finalEnemy);
-    setEnemyHp(finalEnemy.stats.maxHp);
+
+    // Initialize Refs
+    playerHpRef.current = myMonster.stats.hp;
+    enemyHpRef.current = finalEnemy.stats.maxHp;
+    playerGaugeRef.current = 0;
+    enemyGaugeRef.current = 0;
+
+    // Sync State
+    setPlayerHp(playerHpRef.current);
+    setEnemyHp(enemyHpRef.current);
+    setPlayerGauge(0);
+    setEnemyGauge(0);
 
     addLog(`ศัตรูปรากฏตัว! ${finalEnemy.name} (Lv.${finalEnemy.level})`, 'text-red-400 font-bold');
-  };
 
-  const fleeBattle = () => {
-    if (!isActive) return;
-    stopBattle();
-    setResult('fled');
-    addLog('คุณหนีจากการต่อสู้!', 'text-slate-400');
-    // Apply penalty for fleeing? Maybe slight mood/energy loss?
-    // Keeping it simple for now as per request "Run Button allows player to escape".
+    // Start Loop
+    setIsActive(true);
   };
 
   const stopBattle = () => {
@@ -96,6 +100,13 @@ export const useBattle = () => {
     }
   };
 
+  const fleeBattle = () => {
+    if (!isActive) return;
+    stopBattle();
+    setResult('fled');
+    addLog('คุณหนีจากการต่อสู้!', 'text-slate-400');
+  };
+
   // Battle Loop
   useEffect(() => {
     if (!isActive || !myMonster || !enemy) return;
@@ -104,8 +115,13 @@ export const useBattle = () => {
     const gaugeMax = 100;
 
     battleInterval.current = setInterval(() => {
+      let currentPlayerHp = playerHpRef.current;
+      let currentEnemyHp = enemyHpRef.current;
+      let currentPlayerGauge = playerGaugeRef.current;
+      let currentEnemyGauge = enemyGaugeRef.current;
+
       // Check end conditions
-      if (playerHp <= 0) {
+      if (currentPlayerHp <= 0) {
         stopBattle();
         setResult('lose');
         addLog('พ่ายแพ้...', 'text-red-500 font-bold text-lg');
@@ -113,7 +129,7 @@ export const useBattle = () => {
         return;
       }
 
-      if (enemyHp <= 0) {
+      if (currentEnemyHp <= 0) {
         stopBattle();
         setResult('win');
         addLog('ชนะการต่อสู้!', 'text-yellow-400 font-bold text-lg');
@@ -128,34 +144,45 @@ export const useBattle = () => {
         return;
       }
 
-      // Increase Gauges based on SPD
-      setPlayerGauge(prev => {
-        const next = prev + (myMonster.stats.spd * 0.15);
-        if (next >= gaugeMax) {
-          // Player Attack
-          const rawDmg = Math.max(1, myMonster.stats.atk - (enemy.stats.def * 0.5));
-          const finalDmg = Math.floor(rawDmg);
+      // --- Logic ---
 
-          setEnemyHp(h => h - finalDmg);
-          addLog(`${myMonster.name} โจมตี! (${finalDmg} dmg)`, 'text-emerald-400');
-          return 0;
-        }
-        return next;
-      });
+      // 1. Player Gauge Increase
+      currentPlayerGauge += (myMonster.stats.spd * 0.15);
+      if (currentPlayerGauge >= gaugeMax) {
+        // Player Attack
+        const rawDmg = Math.max(1, myMonster.stats.atk - (enemy.stats.def * 0.5));
+        const finalDmg = Math.floor(rawDmg);
 
-      setEnemyGauge(prev => {
-        const next = prev + (enemy.stats.spd * 0.15);
-        if (next >= gaugeMax) {
-          // Enemy Attack
-          const rawDmg = Math.max(1, enemy.stats.atk - (myMonster.stats.def * 0.5));
-          const finalDmg = Math.floor(rawDmg);
+        currentEnemyHp -= finalDmg;
+        addLog(`${myMonster.name} โจมตี! (${finalDmg} dmg)`, 'text-emerald-400');
 
-          setPlayerHp(h => h - finalDmg);
-          addLog(`${enemy.name} โจมตีสวนกลับ! (${finalDmg} dmg)`, 'text-red-400');
-          return 0;
-        }
-        return next;
-      });
+        currentPlayerGauge = 0; // Reset Gauge
+      }
+
+      // 2. Enemy Gauge Increase
+      currentEnemyGauge += (enemy.stats.spd * 0.15);
+      if (currentEnemyGauge >= gaugeMax) {
+        // Enemy Attack
+        const rawDmg = Math.max(1, enemy.stats.atk - (myMonster.stats.def * 0.5));
+        const finalDmg = Math.floor(rawDmg);
+
+        currentPlayerHp -= finalDmg;
+        addLog(`${enemy.name} โจมตีสวนกลับ! (${finalDmg} dmg)`, 'text-red-400');
+
+        currentEnemyGauge = 0; // Reset Gauge
+      }
+
+      // Update Refs
+      playerHpRef.current = currentPlayerHp;
+      enemyHpRef.current = currentEnemyHp;
+      playerGaugeRef.current = currentPlayerGauge;
+      enemyGaugeRef.current = currentEnemyGauge;
+
+      // Sync UI (React State)
+      setPlayerHp(currentPlayerHp);
+      setEnemyHp(currentEnemyHp);
+      setPlayerGauge(currentPlayerGauge);
+      setEnemyGauge(currentEnemyGauge);
 
     }, tickRate);
 
@@ -164,7 +191,7 @@ export const useBattle = () => {
         clearInterval(battleInterval.current);
       }
     };
-  }, [isActive, myMonster, enemy, playerHp, enemyHp, updateVitals, gainRewards]);
+  }, [isActive, myMonster, enemy, updateVitals, gainRewards]); // Removed Hp/Gauge from dependencies
 
   return {
     isActive,
