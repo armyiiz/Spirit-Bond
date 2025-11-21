@@ -77,7 +77,7 @@ export interface GameState {
   trainMonster: () => { stat: string; value: number } | undefined;
   feedGeneric: () => void;
   cleanPoop: () => void;
-  gainRewards: (exp: number, gold: number) => void;
+  gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
 
   // New Actions
