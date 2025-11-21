@@ -17,6 +17,7 @@ const StarterSelection: React.FC = () => {
         {STARTERS.map((starter) => (
           <motion.button
             key={starter.id}
+            data-testid={`starter-btn-${starter.id}`}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => startGame(starter.speciesId)}
