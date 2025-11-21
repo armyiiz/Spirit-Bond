@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState } from '../types';
+import { GameState, Monster } from '../types';
 import { STARTERS } from '../data/monsters';
 import { ITEMS } from '../data/items';
 
@@ -9,7 +9,7 @@ export const useGameStore = create<GameState>()(
     (set, get) => ({
       player: {
         name: 'Player',
-        gold: 0,
+        gold: 100, // Given initial gold for testing
         level: 1
       },
       myMonster: null,
@@ -23,8 +23,9 @@ export const useGameStore = create<GameState>()(
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
         if (starter) {
           // Create a deep copy to ensure we have a fresh instance
+          // Initialize poopCount to 0
           set({
-            myMonster: JSON.parse(JSON.stringify(starter)),
+            myMonster: { ...JSON.parse(JSON.stringify(starter)), poopCount: 0 },
             lastSaveTime: Date.now()
           });
         }
@@ -35,9 +36,35 @@ export const useGameStore = create<GameState>()(
       },
 
       tick: () => {
-        // This function is called frequently by the game loop
-        // We can handle passive regen or state checks here if needed
-        // But mostly we rely on updateVitals triggered by the loop
+        const state = get();
+        const monster = state.myMonster;
+        if (!monster) return;
+
+        const newVitals = { ...monster.vitals };
+
+        // Energy Regen (Max 100, +1 per tick)
+        if (newVitals.energy < 100) {
+          newVitals.energy = Math.min(100, newVitals.energy + 1);
+        }
+
+        // Hunger Decrease (-0.5 per tick, min 0)
+        if (newVitals.hunger > 0) {
+          newVitals.hunger = Math.max(0, newVitals.hunger - 0.5);
+        }
+
+        // Poop Chance (0.5% per tick)
+        let newPoopCount = monster.poopCount || 0;
+        if (Math.random() < 0.005) {
+           newPoopCount = Math.min(5, newPoopCount + 1);
+        }
+
+        set({
+          myMonster: {
+            ...monster,
+            vitals: newVitals,
+            poopCount: newPoopCount
+          } as Monster
+        });
       },
 
       updateVitals: (delta) => {
@@ -135,6 +162,23 @@ export const useGameStore = create<GameState>()(
          }));
 
          return { stat: picked, value: gainedValue };
+      },
+
+      feedGeneric: () => {
+        const state = get();
+        // Only if player has money and monster exists
+        if (state.player.gold >= 1 && state.myMonster) {
+          state.updateVitals({ hunger: 10 });
+          set({ player: { ...state.player, gold: state.player.gold - 1 } });
+        }
+      },
+
+      cleanPoop: () => {
+        const state = get();
+        if (state.myMonster) {
+          set({ myMonster: { ...state.myMonster, poopCount: 0 } as Monster });
+          state.updateVitals({ mood: 10 });
+        }
       },
 
       gainRewards: (exp: number, gold: number) => {
