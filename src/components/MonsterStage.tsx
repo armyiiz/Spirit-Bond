@@ -1,72 +1,97 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { motion } from 'framer-motion';
-import { Heart, Zap, Smile } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { Monster } from '../types';
 
-const MonsterStage: React.FC = () => {
+interface MonsterStageProps {
+  background: string;       // Required for location themes
+  onShowStatus: () => void; // Trigger for the status popup
+  enemy?: Monster | null;   // For rendering Sprite & Name
+  enemyHp?: number;         // For the HP Bar (Current)
+  enemyMaxHp?: number;      // For the HP Bar (Max/Percentage)
+}
+
+const MonsterStage: React.FC<MonsterStageProps> = ({ background, onShowStatus, enemy, enemyHp, enemyMaxHp }) => {
   const monster = useGameStore(state => state.myMonster);
 
   if (!monster) return null;
 
-  const { vitals, appearance, name, stats, element } = monster;
-
-  // Helper to render bars
-  const renderBar = (label: React.ReactNode, value: number, color: string) => (
-    <div className="flex items-center gap-2 w-full">
-      <div className="w-6 text-slate-400">{label}</div>
-      <div className="flex-1 h-3 bg-slate-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} transition-all duration-500`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
+  const { stats, appearance, name } = monster;
 
   return (
-    <div className="flex flex-col items-center justify-start pt-4 px-6 gap-4 w-full h-full">
-      {/* Card Container - Expanded to fill more space */}
-      <div className={`relative w-full flex-1 rounded-3xl border-4 border-slate-700 flex items-center justify-center shadow-2xl overflow-hidden ${appearance.color} bg-opacity-20 min-h-[300px]`}>
-         <div className={`absolute inset-0 ${appearance.color} opacity-20`}></div>
+    <div className={`flex-1 relative flex flex-col items-center justify-center w-full overflow-hidden ${background}`}>
 
-         <motion.div
-           animate={{ y: [0, -15, 0] }}
-           transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-           className="text-[9rem] z-10 drop-shadow-lg"
-         >
-           {appearance.emoji}
-         </motion.div>
+      {/* Background Overlay (Optional tint) */}
+      <div className={`absolute inset-0 opacity-10 pointer-events-none ${appearance.color}`}></div>
 
-         <div className="absolute bottom-6 left-0 right-0 text-center z-10">
-            <h2 className="text-3xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] tracking-wide">{name}</h2>
-            <div className="mt-1">
-               <span className="text-xs font-bold px-3 py-1 bg-black/60 backdrop-blur-sm rounded-full text-white border border-slate-500 shadow-lg">
-                 {element} Type
-               </span>
+      {/* Stage Container */}
+      <div className="relative w-full max-w-md h-full flex items-center justify-between px-6">
+
+         {/* --- Player Monster (Left) --- */}
+         <div className={`flex flex-col items-center z-10 transition-all duration-500 ${enemy ? 'translate-x-0 scale-90' : 'translate-x-[25%] scale-100'}`}>
+            {/* HP Bar Floating */}
+            <div className="mb-2 w-32 bg-slate-800/80 backdrop-blur rounded-full border border-slate-600 p-1 relative shadow-lg">
+               <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                   <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${(stats.hp / stats.maxHp) * 100}%` }}></div>
+               </div>
+               <div className="absolute -top-5 left-0 w-full text-center text-[10px] font-bold text-white drop-shadow-md">
+                  HP {Math.max(0, stats.hp)}/{stats.maxHp}
+               </div>
             </div>
+
+            {/* Sprite */}
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+              className="text-[8rem] drop-shadow-2xl filter"
+            >
+              {appearance.emoji}
+            </motion.div>
+
+            {/* Name (Only if not battling to reduce clutter? Or keep small? User said "REMOVE the floating Name/Element text overlay immediately." so we assume completely removed from stage) */}
          </div>
+
+         {/* --- VS Divider --- */}
+         {enemy && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+               <span className="text-6xl font-black text-white/10 italic">VS</span>
+            </div>
+         )}
+
+         {/* --- Enemy Monster (Right) --- */}
+         {enemy && (
+            <div className="flex flex-col items-center z-10 animate-in slide-in-from-right-10 duration-500">
+               {/* HP Bar Floating */}
+               <div className="mb-2 w-32 bg-slate-800/80 backdrop-blur rounded-full border border-slate-600 p-1 relative shadow-lg">
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-red-500 transition-all duration-300"
+                        style={{ width: `${enemyMaxHp && enemyHp !== undefined ? (enemyHp / enemyMaxHp) * 100 : 100}%` }}
+                      ></div>
+                   </div>
+                   <div className="absolute -top-5 left-0 w-full text-center text-[10px] font-bold text-red-200 drop-shadow-md">
+                      HP {enemyHp !== undefined ? Math.max(0, enemyHp) : '???'}/{enemyMaxHp || '???'}
+                   </div>
+               </div>
+
+               {/* Sprite */}
+               <div className="text-[8rem] drop-shadow-2xl filter transform -scale-x-100">
+                  {enemy.appearance.emoji}
+               </div>
+            </div>
+         )}
       </div>
 
-      {/* Vitals Section - Compacted */}
-      <div className="w-full bg-slate-800/80 backdrop-blur-sm rounded-xl p-4 flex flex-col gap-2 shadow-lg border border-slate-700">
-         <div className="flex justify-between text-xs font-bold text-slate-400 mb-1">
-           <span>Lv. {monster.level}</span>
-           <span>HP: {stats.hp}/{stats.maxHp}</span>
-         </div>
-         {/* HP Bar */}
-         <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-2 relative">
-             <div className="h-full bg-red-500 transition-all duration-300" style={{ width: `${(stats.hp / stats.maxHp) * 100}%` }}></div>
-         </div>
+      {/* Info Button (Top Right) */}
+      <button
+        data-testid="status-btn"
+        onClick={onShowStatus}
+        className="absolute top-4 right-4 z-20 w-10 h-10 bg-slate-800/80 backdrop-blur border border-slate-600 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-700 hover:text-white shadow-lg transition-all"
+      >
+        <Search size={20} />
+      </button>
 
-         {/* EXP Bar */}
-         <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden mb-2">
-             <div className="h-full bg-blue-400 transition-all duration-300" style={{ width: `${(monster.exp / monster.maxExp) * 100}%` }}></div>
-         </div>
-
-         {renderBar(<Heart size={14} />, vitals.hunger, 'bg-orange-400')}
-         {renderBar(<Smile size={14} />, vitals.mood, 'bg-pink-400')}
-         {renderBar(<Zap size={14} />, vitals.energy, 'bg-yellow-400')}
-      </div>
     </div>
   );
 };
