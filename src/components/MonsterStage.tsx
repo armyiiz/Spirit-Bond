@@ -1,65 +1,103 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { motion } from 'framer-motion';
-import { Heart, Zap, Smile } from 'lucide-react';
+import { Search, Zap } from 'lucide-react';
+import { BattleState } from '../hooks/useBattleSystem';
+import { Monster } from '../types';
 
-const MonsterStage: React.FC = () => {
+interface MonsterStageProps {
+  background: string;
+  battleState: BattleState;
+  onShowStatus: () => void;
+}
+
+const MonsterStage: React.FC<MonsterStageProps> = ({ background, battleState, onShowStatus }) => {
   const monster = useGameStore(state => state.myMonster);
 
   if (!monster) return null;
 
-  const { vitals, appearance, name, stats, element } = monster;
+  const { stats, appearance, level } = monster;
 
-  // Helper to render bars
-  const renderBar = (label: React.ReactNode, value: number, color: string) => (
-    <div className="flex items-center gap-2 w-full">
-      <div className="w-6 text-slate-400">{label}</div>
-      <div className="flex-1 h-3 bg-slate-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} transition-all duration-500`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
+  const currentHp = battleState.isActive ? battleState.playerHp : stats.hp;
+  const maxHp = battleState.isActive ? battleState.playerMaxHp : stats.maxHp;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6 w-full max-w-md mx-auto">
-      {/* Card Container */}
-      <div className={`relative w-full aspect-square rounded-3xl border-4 border-slate-700 flex items-center justify-center shadow-2xl overflow-hidden ${appearance.color} bg-opacity-20`}>
-         <div className={`absolute inset-0 ${appearance.color} opacity-20`}></div>
+    <div className={`flex-1 relative overflow-hidden transition-colors duration-1000 ${background}`}>
+       {/* Background Overlay for Depth */}
+       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40 pointer-events-none"></div>
 
-         <motion.div
-           animate={{ y: [0, -10, 0] }}
-           transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-           className="text-9xl z-10 drop-shadow-lg"
-         >
-           {appearance.emoji}
-         </motion.div>
+       {/* Stage Area */}
+       <div className="absolute inset-0 flex items-center justify-center px-4">
+          <div className="w-full max-w-md flex justify-between items-end pb-20 relative h-full">
 
-         <div className="absolute bottom-4 left-0 right-0 text-center z-10">
-            <h2 className="text-2xl font-bold text-white drop-shadow-md">{name}</h2>
-            <span className="text-xs px-2 py-1 bg-black bg-opacity-50 rounded-full text-white border border-slate-600">
-              {element} Type
-            </span>
-         </div>
-      </div>
+             {/* Player Monster (Left) */}
+             <div className="flex flex-col items-center z-10 relative w-1/2">
+                {/* Damage Numbers / Effects could go here */}
+                <motion.div
+                   animate={{
+                      y: [0, -8, 0],
+                      scale: battleState.isActive ? [1, 1.05, 1] : 1
+                   }}
+                   transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                   className="text-[7rem] sm:text-[9rem] drop-shadow-2xl filter"
+                   style={{ transform: 'scaleX(-1)' }} // Face right
+                >
+                  {appearance.emoji}
+                </motion.div>
+                {/* Shadow */}
+                <div className="w-20 h-4 bg-black/30 rounded-[100%] blur-sm mt-[-10px]"></div>
+             </div>
 
-      {/* Vitals Section */}
-      <div className="w-full bg-slate-800 rounded-xl p-4 flex flex-col gap-2 shadow-lg">
-         <div className="flex justify-between text-xs text-slate-400 mb-1">
-           <span>HP: {stats.hp}/{stats.maxHp}</span>
-           <span>EXP: {monster.exp}/{monster.maxExp}</span>
-         </div>
-         {/* HP Bar */}
-         <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-2">
-             <div className="h-full bg-red-500" style={{ width: `${(stats.hp / stats.maxHp) * 100}%` }}></div>
-         </div>
+             {/* Enemy Monster (Right) - Only visible in battle */}
+             {battleState.isActive && battleState.enemy && (
+               <div className="flex flex-col items-center z-10 relative w-1/2">
+                  <motion.div
+                     initial={{ opacity: 0, x: 50 }}
+                     animate={{ opacity: 1, x: 0 }}
+                     exit={{ opacity: 0, x: 50 }}
+                     className="text-[7rem] sm:text-[9rem] drop-shadow-2xl grayscale-[0.2]"
+                  >
+                    {battleState.enemy.appearance.emoji}
+                  </motion.div>
+                  {/* Enemy HP Bar (Mini) */}
+                  <div className="w-20 h-2 bg-slate-800 rounded-full mt-[-10px] border border-slate-600 overflow-hidden relative z-20">
+                     <div
+                       className="h-full bg-red-500 transition-all duration-200"
+                       style={{ width: `${(battleState.enemyHp / battleState.enemyMaxHp) * 100}%` }}
+                     ></div>
+                  </div>
+                  <div className="w-20 h-4 bg-black/30 rounded-[100%] blur-sm mt-1"></div>
+               </div>
+             )}
+          </div>
+       </div>
 
-         {renderBar(<Heart size={14} />, vitals.hunger, 'bg-orange-400')}
-         {renderBar(<Smile size={14} />, vitals.mood, 'bg-pink-400')}
-         {renderBar(<Zap size={14} />, vitals.energy, 'bg-yellow-400')}
-      </div>
+       {/* HUD Overlay (Top Left - Player HP) */}
+       <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+          <div className="flex-1 max-w-[180px]">
+             <div className="flex justify-between text-xs font-bold text-white drop-shadow-md mb-1 px-1">
+               <span>Lv.{level} {monster.name}</span>
+               <span>{Math.max(0, currentHp)}/{maxHp}</span>
+             </div>
+             <div className="h-4 bg-slate-900/60 backdrop-blur-sm rounded-full border border-slate-500 overflow-hidden relative">
+                <div
+                   className="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                   style={{ width: `${(Math.max(0, currentHp) / maxHp) * 100}%` }}
+                ></div>
+                {/* Gauge Bar (Yellow) - Only in battle */}
+                {battleState.isActive && (
+                   <div className="absolute bottom-0 left-0 h-1 bg-yellow-400 transition-all duration-100" style={{ width: `${Math.min(100, battleState.playerGauge)}%` }}></div>
+                )}
+             </div>
+          </div>
+
+          <button
+            onClick={onShowStatus}
+            className="ml-2 p-2 bg-slate-900/60 backdrop-blur-sm border border-slate-500 rounded-full text-white hover:bg-white hover:text-black transition-colors shadow-lg"
+          >
+            <Search size={16} />
+          </button>
+       </div>
     </div>
   );
 };
