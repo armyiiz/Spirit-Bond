@@ -73,5 +73,6 @@ export interface GameState {
   addItem: (itemId: string, count: number) => void;
   useItem: (itemId: string) => void;
   trainMonster: () => void;
+  gainRewards: (exp: number, gold: number) => void;
   setLastSaveTime: (time: number) => void;
 }

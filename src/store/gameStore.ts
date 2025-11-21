@@ -130,6 +130,55 @@ export const useGameStore = create<GameState>()(
          set(s => ({
            myMonster: s.myMonster ? { ...s.myMonster, stats: newStats } : null
          }));
+      },
+
+      gainRewards: (exp: number, gold: number) => {
+        const state = get();
+        const monster = state.myMonster;
+        if (!monster) return;
+
+        // Add Gold to Player
+        const newPlayer = { ...state.player, gold: state.player.gold + gold };
+
+        // Add EXP to Monster
+        let newExp = monster.exp + exp;
+        let newLevel = monster.level;
+        let newMaxExp = monster.maxExp;
+        let newStats = { ...monster.stats };
+
+        // Level Up Logic
+        // Using while loop in case of massive EXP gain (e.g. debug or events)
+        while (newExp >= newMaxExp) {
+           newExp -= newMaxExp;
+           newLevel += 1;
+           newMaxExp = Math.floor(newMaxExp * 1.2);
+
+           // Stat Growth: +10% to all stats
+           newStats = {
+             hp: Math.floor(newStats.hp * 1.1), // Current HP also scales? Or just Max? Usually Max.
+             maxHp: Math.floor(newStats.maxHp * 1.1),
+             atk: Math.floor(newStats.atk * 1.1),
+             def: Math.floor(newStats.def * 1.1),
+             spd: Math.floor(newStats.spd * 1.1),
+             luk: Math.floor(newStats.luk * 1.1),
+           };
+        }
+
+        // If leveled up, full heal (User request: "Heal HP เต็มหลอด")
+        if (newLevel > monster.level) {
+           newStats.hp = newStats.maxHp;
+        }
+
+        set({
+           player: newPlayer,
+           myMonster: {
+             ...monster,
+             level: newLevel,
+             exp: newExp,
+             maxExp: newMaxExp,
+             stats: newStats
+           }
+        });
       }
     }),
     {
