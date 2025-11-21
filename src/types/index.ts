@@ -66,6 +66,7 @@ export interface GameState {
   myMonster: Monster | null;
   inventory: InventoryItem[];
   lastSaveTime: number;
+  isSleeping: boolean; // Added
 
   // Actions
   startGame: (starterId: number) => void;
@@ -78,4 +79,9 @@ export interface GameState {
   cleanPoop: () => void;
   gainRewards: (exp: number, gold: number) => void;
   setLastSaveTime: (time: number) => void;
+
+  // New Actions
+  toggleSleep: () => void;
+  resetSave: () => void;
+  setMyMonster: (monster: Monster) => void;
 }
