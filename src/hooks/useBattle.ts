@@ -24,8 +24,8 @@ export const useBattle = () => {
   // UI State (Sync with Refs for display)
   const [playerHp, setPlayerHp] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
-  const [playerGauge, setPlayerGauge] = useState(0); // Added for UI
-  const [enemyGauge, setEnemyGauge] = useState(0); // Added for UI
+  const [playerGauge, setPlayerGauge] = useState(0);
+  const [enemyGauge, setEnemyGauge] = useState(0);
 
   const addLog = useCallback((text: string, color: string = 'text-slate-400') => {
     setLogs(prev => [...prev.slice(-4), { id: Date.now(), text, color }]);
@@ -34,14 +34,13 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    // 1. Logic: Filter ศัตรูเฉพาะ Stage เดียวกัน (User Request #4)
+    // 1. Logic: Filter ศัตรูเฉพาะ Stage เดียวกัน
     const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
-    // Fallback ถ้าไม่เจอ (กันเหนียว) ใช้ DB ทั้งหมด
     const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
 
     const randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
 
-    // 2. Level Logic (User Request: เท่ากัน 50%, -1 30%, +1 20%)
+    // 2. Level Logic
     const rand = Math.random();
     let levelDiff = 0;
     if (rand < 0.5) levelDiff = 0;
@@ -63,7 +62,7 @@ export const useBattle = () => {
         spd: Math.floor(randomBase.stats.spd * scale),
         luk: Math.floor(randomBase.stats.luk * scale),
       },
-      vitals: { ...randomBase.vitals }, // Important fix for structure
+      vitals: { ...randomBase.vitals },
       poopCount: 0
     };
 
@@ -71,7 +70,7 @@ export const useBattle = () => {
     setEnemy(newEnemy);
 
     // Player setup
-    playerHpRef.current = myMonster.stats.hp; // ใช้ HP ปัจจุบัน (ไม่เต็มก็สู้ต่อได้)
+    playerHpRef.current = myMonster.stats.hp;
     setPlayerHp(myMonster.stats.hp);
     playerGaugeRef.current = 0;
     setPlayerGauge(0);
@@ -99,22 +98,18 @@ export const useBattle = () => {
           const gold = enemy.level * 10;
           const exp = enemy.level * 20;
           addLog(`🏆 ชนะ! ได้รับ ${gold}G, ${exp}EXP`, 'text-yellow-400');
-          gainRewards(exp, gold);
+
+          // Use the new atomic update to prevent race conditions
+          gainRewards(exp, gold, playerHpRef.current);
           updateVitals({ hunger: -2, energy: -5 });
 
-          // Update Real HP back to store
-          if (myMonster) {
-             setMyMonster({
-                ...myMonster,
-                stats: { ...myMonster.stats, hp: playerHpRef.current }
-             });
-          }
+          // Removed the conflicting setMyMonster call here
        }
     } else if (finalResult === 'lose') {
        // Lose Logic
        addLog('💀 พ่ายแพ้... (HP เหลือ 1)', 'text-red-600');
        updateVitals({ mood: -20, energy: -10 });
-       // Fix #1: ไม่ฮีลเต็มแล้ว! ให้เหลือ 1 HP พอให้เดินกลับบ้าน
+       // HP drops to 1
        if (myMonster) {
           setMyMonster({
              ...myMonster,
@@ -124,7 +119,7 @@ export const useBattle = () => {
     } else {
         // Fled
         addLog('💨 หนีสำเร็จ!', 'text-slate-400');
-        updateVitals({ energy: -5 }); // Cost for fleeing
+        updateVitals({ energy: -5 });
     }
   }, [enemy, gainRewards, updateVitals, myMonster, setMyMonster, addLog]);
 
@@ -151,7 +146,7 @@ export const useBattle = () => {
           // Attack
           const dmg = Math.max(1, Math.floor(myMonster.stats.atk - (enemy.stats.def * 0.5)));
           enemyHpRef.current -= dmg;
-          setEnemyHp(enemyHpRef.current); // Update UI
+          setEnemyHp(enemyHpRef.current);
           addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
        }
 
@@ -162,11 +157,10 @@ export const useBattle = () => {
           // Enemy Attack
           const dmg = Math.max(1, Math.floor(enemy.stats.atk - (myMonster.stats.def * 0.5)));
           playerHpRef.current -= dmg;
-          setPlayerHp(playerHpRef.current); // Update UI
+          setPlayerHp(playerHpRef.current);
           addLog(`${enemy.name} สวนกลับ! (-${dmg})`, 'text-orange-400');
        }
 
-       // Sync Gauges to UI (optional, for smoother bars might want requestAnimationFrame but this is fine)
        setPlayerGauge(playerGaugeRef.current);
        setEnemyGauge(enemyGaugeRef.current);
 

@@ -6,7 +6,7 @@ export const ITEMS: Record<string, Item> = {
     type: 'consumable',
     name: 'เนื้อติดกระดูก',
     description: 'เนื้อชิ้นโต เพิ่มความอิ่มได้มาก',
-    effect: { hunger: 20 },
+    effect: { hunger: 20, hp: 10 },
     emoji: '🍖'
   },
   'food_apple': {
@@ -14,7 +14,7 @@ export const ITEMS: Record<string, Item> = {
     type: 'consumable',
     name: 'แอปเปิ้ลป่า',
     description: 'ผลไม้สดชื่น เพิ่มอารมณ์ดี',
-    effect: { hunger: 10, mood: 5 },
+    effect: { hunger: 10, mood: 5, hp: 5 },
     emoji: '🍎'
   },
   'potion_hp': {

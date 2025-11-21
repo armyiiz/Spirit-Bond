@@ -204,7 +204,7 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      gainRewards: (exp: number, gold: number) => {
+      gainRewards: (exp: number, gold: number, remainingHp?: number) => {
         const state = get();
         const monster = state.myMonster;
         if (!monster) return;
@@ -217,6 +217,11 @@ export const useGameStore = create<GameState>()(
         let newLevel = monster.level;
         let newMaxExp = monster.maxExp;
         let newStats = { ...monster.stats };
+
+        // Handle HP update atomically if provided
+        if (remainingHp !== undefined) {
+             newStats.hp = remainingHp;
+        }
 
         // Level Up Logic
         // Using while loop in case of massive EXP gain (e.g. debug or events)
