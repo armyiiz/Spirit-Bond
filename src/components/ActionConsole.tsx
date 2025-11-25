@@ -376,7 +376,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {ROUTES.map(route => {
-            const isLocked = myMonster && myMonster.level < route.requiredLevel;
+            const isLocked = !myMonster || myMonster.level < route.requiredLevel;
             return (
               <button
                 key={route.id}
