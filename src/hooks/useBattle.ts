@@ -11,6 +11,7 @@ export type BattleResult = 'win' | 'lose' | 'fled' | null;
 
 export const useBattle = () => {
   const { myMonster, updateVitals, gainRewards, setMyMonster } = useGameStore();
+  const activeRouteId = useGameStore(state => state.activeRouteId);
 
   const [isActive, setIsActive] = useState(false);
   const [result, setResult] = useState<BattleResult>(null);
@@ -34,7 +35,6 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    const activeRouteId = useGameStore.getState().activeRouteId;
     let randomBase: Monster;
 
     if (activeRouteId) {
@@ -103,7 +103,7 @@ export const useBattle = () => {
     setIsActive(true);
 
     addLog(`⚔️ พบศัตรู: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
-  }, [myMonster, addLog]);
+  }, [myMonster, addLog, activeRouteId]);
 
   const endBattle = useCallback((finalResult: 'win' | 'lose' | 'fled') => {
     setIsActive(false);
