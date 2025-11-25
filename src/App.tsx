@@ -13,7 +13,7 @@ import StatusStrip from './components/StatusStrip';
 import SleepSummaryModal from './components/SleepSummaryModal';
 
 function App() {
-  const { myMonster } = useGameStore();
+  const { myMonster, clearActiveRoute } = useGameStore();
   const [isInGame, setIsInGame] = useState(false);
   const [consoleMode, setConsoleMode] = useState<ConsoleMode>('idle');
 
@@ -46,6 +46,7 @@ function App() {
   // If user clicks "Close" on result view, we should go back to idle.
   const handleBattleClose = () => {
     setConsoleMode('idle');
+    clearActiveRoute();
     // Ensure battle is stopped/reset if not already?
     // useBattle handles stop internally on win/lose.
   };

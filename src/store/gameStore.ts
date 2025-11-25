@@ -24,6 +24,7 @@ export const useGameStore = create<GameState>()(
       activeRouteId: null,
 
       setActiveRoute: (routeId) => set({ activeRouteId: routeId }),
+      clearActiveRoute: () => set({ activeRouteId: null }),
 
       startGame: (starterSpeciesId: number) => {
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
