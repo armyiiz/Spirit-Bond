@@ -63,12 +63,20 @@ export interface Player {
   level: number;
 }
 
+export interface SleepSummary {
+  duration: number; // in seconds
+  hpGained: number;
+  energyGained: number;
+}
+
 export interface GameState {
   player: Player;
   myMonster: Monster | null;
   inventory: InventoryItem[];
   lastSaveTime: number;
   isSleeping: boolean;
+  sleepTimestamp: number | null;
+  sleepSummary: SleepSummary | null;
 
   // Actions
   startGame: (starterId: number) => void;
@@ -84,6 +92,37 @@ export interface GameState {
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
   toggleSleep: () => void;
+  wakeUp: () => void;
+  clearSleepSummary: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;
+  activeRouteId: string | null;
+  setActiveRoute: (routeId: string | null) => void;
+}
+
+export interface LootTable {
+  itemId: string;
+  chance: number; // 0-1 (e.g., 0.5 = 50%)
+}
+
+export interface Enemy {
+  id: string;
+  name: string;
+  element: ElementType;
+  levelRange: [number, number]; // [min, max] relative to player
+  stats: Stats;
+  drops: LootTable[];
+  isBoss?: boolean;
+  emoji: string;
+}
+
+export interface Route {
+  id: string;
+  name: string;
+  description: string;
+  element: ElementType;
+  requiredLevel: number;
+  enemies: string[]; // Enemy IDs
+  bossId?: string;
+  color: string; // Tailwind class
 }

@@ -3,7 +3,8 @@ import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
 import { ITEMS } from '../data/items'; // Import items for shop
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart } from 'lucide-react';
+import { ROUTES } from '../data/routes';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock } from 'lucide-react';
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -17,9 +18,10 @@ interface ActionConsoleProps {
     onRestart: () => void;
   };
   onReturnToIdle: () => void;
+  onModeChange: (mode: ConsoleMode) => void;
 }
 
-const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle }) => {
+const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle, onModeChange }) => {
   const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
@@ -358,14 +360,51 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  if (['explore'].includes(mode)) {
-     return (
-        <div className="h-full bg-slate-900 p-4 flex flex-col items-center justify-center text-center">
-           <h3 className="font-bold text-xl text-slate-500 uppercase mb-2">{mode}</h3>
-           <p className="text-slate-600 text-sm">Coming Soon...</p>
-           <button onClick={onReturnToIdle} className="mt-4 text-xs underline text-slate-500">Back</button>
+  if (mode === 'explore') {
+    const { setActiveRoute } = useGameStore.getState();
+
+    const handleSelectRoute = (routeId: string) => {
+      setActiveRoute(routeId);
+      onModeChange('battle');
+    };
+
+    return (
+      <div className="h-full bg-slate-900 p-4 flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-emerald-400">🗺️ เลือกเส้นทาง</h3>
+          <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
         </div>
-     );
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {ROUTES.map(route => {
+            const isLocked = myMonster && myMonster.level < route.requiredLevel;
+            return (
+              <button
+                key={route.id}
+                disabled={isLocked}
+                onClick={() => !isLocked && handleSelectRoute(route.id)}
+                className={`w-full p-3 rounded-lg flex items-center justify-between text-left border ${
+                  isLocked
+                    ? 'bg-slate-800/50 border-slate-700 opacity-60'
+                    : `${route.color} border-slate-700 hover:brightness-110`
+                }`}
+              >
+                <div>
+                  <h4 className="font-bold">{route.name}</h4>
+                  <p className="text-xs opacity-80">{route.description}</p>
+                </div>
+                <div className="text-right">
+                  {isLocked ? (
+                    <span className="text-sm">🔒 Lv.{route.requiredLevel}</span>
+                  ) : (
+                    <span className="text-xs">Lv.{route.requiredLevel}+</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   return <div className="h-full bg-slate-900 p-4 text-center text-slate-500">Mode: {mode} (Unknown)</div>;
