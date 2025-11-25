@@ -1,10 +1,11 @@
+// ... imports
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
-import { ITEMS } from '../data/items'; // Import items for shop
+import { ITEMS } from '../data/items';
 import { ROUTES } from '../data/routes';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock } from 'lucide-react';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Hammer, ArrowUpCircle } from 'lucide-react'; // เพิ่ม Hammer, ArrowUpCircle
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -21,8 +22,10 @@ interface ActionConsoleProps {
   onModeChange: (mode: ConsoleMode) => void;
 }
 
+
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle, onModeChange }) => {
-  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster } = useGameStore();
+  const { myMonster, player, inventory, useItem, buyItem, craftItem, evolveMonster,
+          updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, bathMonster } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
@@ -37,7 +40,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     }
   }, [battleState?.logs, mode]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (mode === 'battle' && battleState?.result && !battleState.isActive) {
       setCanCloseBattle(false);
       const timer = setTimeout(() => {
@@ -57,7 +60,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
      if (result) setTrainingResult(result);
   };
 
-  // SLEEP OVERLAY (Modified: Bypass for 'shop' and 'settings')
   if (isSleeping && mode !== 'settings' && mode !== 'shop') {
      return (
        <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
@@ -115,7 +117,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   }
 
   if (mode === 'care') {
-    const poopCount = (myMonster as any).poopCount || 0;
+    const poopCount = myMonster?.poopCount || 0;
     const canBath = myMonster && myMonster.vitals.energy >= 5 && myMonster.vitals.mood < 100;
 
     return (
@@ -131,7 +133,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
               <span className="text-[10px] text-yellow-400">-1 Gold</span>
            </button>
 
-           {/* Update Bath Button with Cost */}
            <button
              onClick={bathMonster}
              disabled={!canBath}
@@ -183,36 +184,75 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // SHOP MODE
   if (mode === 'shop') {
-    const shopItems = Object.values(ITEMS).filter(item => item.price && item.price > 0);
+    const shopItems = Object.values(ITEMS).filter(item => !item.recipe && item.price);
+    const craftItems = Object.values(ITEMS).filter(item => item.recipe);
+
     return (
         <div className="h-full bg-slate-900 p-4 flex flex-col">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-blue-400 flex items-center gap-2"><ShoppingCart size={18}/> ร้านค้า</h3>
+                <h3 className="font-bold text-blue-400 flex items-center gap-2"><ShoppingCart size={18}/> ร้านค้า & คราฟต์</h3>
                 <div className="text-xs text-yellow-400 font-mono bg-slate-800 px-2 py-1 rounded">
                     💰 {player.gold} G
                 </div>
             </div>
             <button onClick={onReturnToIdle} className="text-xs underline text-slate-500 self-end mb-2">Close</button>
 
-            <div className="flex-1 overflow-y-auto space-y-2">
-                {shopItems.map(item => (
-                    <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
-                        <div className="text-3xl bg-slate-700 w-12 h-12 flex items-center justify-center rounded-lg">{item.emoji}</div>
-                        <div className="flex-1">
-                            <div className="font-bold text-slate-200 text-sm">{item.name}</div>
-                            <div className="text-[10px] text-slate-400">{item.description}</div>
-                        </div>
-                        <button
-                            onClick={() => buyItem(item.id)}
-                            disabled={player.gold < (item.price || 0)}
-                            className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${player.gold >= (item.price || 0) ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
-                        >
-                            {item.price} G
-                        </button>
-                    </div>
-                ))}
+            <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="space-y-2">
+                   <h4 className="text-xs text-slate-500 uppercase font-bold">สินค้าทั่วไป</h4>
+                   {shopItems.map(item => (
+                       <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
+                           <div className="text-2xl bg-slate-700 w-10 h-10 flex items-center justify-center rounded-lg">{item.emoji}</div>
+                           <div className="flex-1">
+                               <div className="font-bold text-slate-200 text-sm">{item.name}</div>
+                               <div className="text-[10px] text-slate-400">{item.price} G</div>
+                           </div>
+                           <button onClick={() => buyItem(item.id)} disabled={player.gold < (item.price || 0)} className={`px-3 py-1 rounded text-xs font-bold ${player.gold >= (item.price || 0) ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-700 text-slate-500'}`}>Buy</button>
+                       </div>
+                   ))}
+                </div>
+
+                <div className="space-y-2">
+                   <h4 className="text-xs text-slate-500 uppercase font-bold">ผสมหินวิวัฒนาการ</h4>
+                   {craftItems.map(item => {
+                       const recipe = item.recipe!;
+                       const canCraft = player.gold >= recipe.gold && recipe.ingredients.every(req => {
+                           const found = inventory.find(i => i.item.id === req.itemId);
+                           return found && found.count >= req.count;
+                       });
+
+                       return (
+                           <div key={item.id} className="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                               <div className="flex justify-between items-start mb-2">
+                                   <div className="flex gap-2">
+                                       <div className="text-2xl">{item.emoji}</div>
+                                       <div>
+                                           <div className="font-bold text-slate-200 text-sm">{item.name}</div>
+                                           <div className="text-[10px] text-yellow-400">Cost: {recipe.gold} G</div>
+                                       </div>
+                                   </div>
+                                   <button onClick={() => craftItem(item.id)} disabled={!canCraft} className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 ${canCraft ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-700 text-slate-500'}`}>
+                                       <Hammer size={12}/> Craft
+                                   </button>
+                               </div>
+                               <div className="flex gap-2 bg-slate-900/50 p-2 rounded">
+                                   {recipe.ingredients.map(req => {
+                                       const ingItem = ITEMS[req.itemId];
+                                       const userHas = inventory.find(i => i.item.id === req.itemId)?.count || 0;
+                                       const isEnough = userHas >= req.count;
+                                       return (
+                                           <div key={req.itemId} className={`text-[10px] flex items-center gap-1 ${isEnough ? 'text-slate-300' : 'text-red-400'}`}>
+                                               <span>{ingItem?.emoji}</span>
+                                               <span>{userHas}/{req.count}</span>
+                                           </div>
+                                       );
+                                   })}
+                               </div>
+                           </div>
+                       );
+                   })}
+                </div>
             </div>
         </div>
     );
@@ -220,8 +260,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   if (mode === 'evo') {
      if (!myMonster) return null;
-     const baseName = myMonster.id.replace('starter_', '').replace('evo_', '').split('_')[0];
-     const possibleEvos = EVOLUTIONS.filter(e => e.id.includes(baseName));
+     const possibleEvos = EVOLUTIONS.filter(e => e.parentSpeciesId === myMonster.speciesId);
 
      return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
@@ -230,18 +269,36 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
            <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
          </div>
          <div className="flex-1 overflow-y-auto space-y-2">
-            {possibleEvos.map(evo => (
-               <div key={evo.id} className="bg-slate-800 p-3 rounded-lg flex justify-between items-center border border-slate-700">
-                  <div className="flex items-center gap-3">
-                     <div className="text-2xl bg-slate-700 w-10 h-10 flex items-center justify-center rounded-full">?</div>
-                     <div>
-                       <div className="font-bold text-slate-200">{evo.element} Form</div>
-                       <div className="text-[10px] text-slate-400">Req: Lv.10 + {evo.element} Stone</div>
-                     </div>
-                  </div>
-                  <button disabled className="px-3 py-1 bg-slate-900 text-slate-600 text-xs rounded border border-slate-800">Locked</button>
-               </div>
-            ))}
+            {possibleEvos.map(evo => {
+               const stoneId = `stone_${evo.element.toLowerCase()}`;
+               const hasStone = inventory.some(i => i.item.id === stoneId && i.count > 0);
+               const isLevelEnough = myMonster.level >= 10;
+               const canEvolve = hasStone && isLevelEnough;
+
+               return (
+                   <div key={evo.id} className={`bg-slate-800 p-3 rounded-lg flex justify-between items-center border ${canEvolve ? 'border-purple-500 shadow-lg shadow-purple-900/20' : 'border-slate-700'}`}>
+                      <div className="flex items-center gap-3">
+                         <div className="text-2xl bg-slate-700 w-10 h-10 flex items-center justify-center rounded-full">
+                             {canEvolve ? evo.appearance.emoji : '?'}
+                         </div>
+                         <div>
+                           <div className="font-bold text-slate-200">{evo.name}</div>
+                           <div className="text-[10px] text-slate-400 flex flex-col">
+                               <span className={isLevelEnough ? 'text-green-400' : 'text-red-400'}>• Lv.10 (Current: {myMonster.level})</span>
+                               <span className={hasStone ? 'text-green-400' : 'text-red-400'}>• {evo.element} Stone {hasStone ? '✅' : '❌'}</span>
+                           </div>
+                         </div>
+                      </div>
+                      <button
+                        onClick={() => evolveMonster(evo.speciesId, stoneId)}
+                        disabled={!canEvolve}
+                        className={`px-3 py-2 rounded text-xs font-bold ${canEvolve ? 'bg-purple-600 hover:bg-purple-500 text-white animate-pulse' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}
+                      >
+                          {canEvolve ? 'EVOLVE!' : 'Locked'}
+                      </button>
+                   </div>
+               );
+            })}
             {possibleEvos.length === 0 && <div className="text-center text-slate-500 mt-10">ร่างนี้สุดยอดแล้ว! พัฒนาต่อไม่ได้</div>}
          </div>
       </div>
@@ -406,6 +463,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
       </div>
     );
   }
+
 
   return <div className="h-full bg-slate-900 p-4 text-center text-slate-500">Mode: {mode} (Unknown)</div>;
 };
