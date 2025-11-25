@@ -114,7 +114,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   if (mode === 'care') {
     const poopCount = (myMonster as any).poopCount || 0;
-    const canBath = myMonster && myMonster.vitals.energy >= 5;
+    const canBath = myMonster && myMonster.vitals.energy >= 5 && myMonster.vitals.mood < 100;
 
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
