@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut } from 'lucide-react';
+import { ITEMS } from '../data/items'; // Import items for shop
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart } from 'lucide-react';
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -19,7 +20,7 @@ interface ActionConsoleProps {
 }
 
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle }) => {
-  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave } = useGameStore();
+  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
@@ -34,7 +35,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     }
   }, [battleState?.logs, mode]);
 
-  // Handle Battle End Delay
   useEffect(() => {
     if (mode === 'battle' && battleState?.result && !battleState.isActive) {
       setCanCloseBattle(false);
@@ -45,25 +45,18 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     }
   }, [mode, battleState?.result, battleState?.isActive]);
 
-  // Reset local state when mode changes
   useEffect(() => {
-    if (mode !== 'train') {
-        setTrainingResult(null);
-    }
-    if (mode !== 'battle') {
-        setCanCloseBattle(false);
-    }
+    if (mode !== 'train') setTrainingResult(null);
+    if (mode !== 'battle') setCanCloseBattle(false);
   }, [mode]);
 
   const handleTrain = () => {
      const result = trainMonster();
-     if (result) {
-         setTrainingResult(result);
-     }
+     if (result) setTrainingResult(result);
   };
 
-  // 6. SLEEP OVERLAY
-  if (isSleeping && mode !== 'settings') { // Allow entering settings even if sleeping
+  // SLEEP OVERLAY (Modified: Bypass for 'shop' and 'settings')
+  if (isSleeping && mode !== 'settings' && mode !== 'shop') {
      return (
        <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
           <Moon size={48} className="text-blue-200 mb-4" />
@@ -78,7 +71,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   // --- Render Views ---
 
-  // 1. IDLE VIEW (Status Screen - Default)
   if (mode === 'idle') {
     if (!myMonster) return null;
     return (
@@ -93,7 +85,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
              <div className="text-[10px] text-blue-400">EXP {myMonster.exp}/{myMonster.maxExp}</div>
            </div>
         </div>
-
         <div className="grid grid-cols-3 gap-2 mt-1">
            <div className="bg-slate-800 p-2 rounded flex flex-col items-center">
               <Heart size={16} className="text-orange-400 mb-1"/>
@@ -111,8 +102,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
               <div className="text-[9px] text-slate-500">พลังงาน</div>
            </div>
         </div>
-
-        {/* Stats Row */}
         <div className="grid grid-cols-4 gap-1 text-[10px] text-center text-slate-500 mt-auto">
            <div className="bg-slate-800/50 rounded py-1">ATK {myMonster.stats.atk}</div>
            <div className="bg-slate-800/50 rounded py-1">DEF {myMonster.stats.def}</div>
@@ -123,9 +112,10 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // 2. CARE VIEW
   if (mode === 'care') {
     const poopCount = (myMonster as any).poopCount || 0;
+    const canBath = myMonster && myMonster.vitals.energy >= 5 && myMonster.vitals.mood < 100;
+
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
         <div className="flex justify-between items-center mb-4">
@@ -138,13 +128,20 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
               <span className="text-sm font-bold">ป้อนอาหาร</span>
               <span className="text-[10px] text-yellow-400">-1 Gold</span>
            </button>
-           <button onClick={() => updateVitals({ mood: 10 })} className="bg-slate-800 hover:bg-slate-700 p-3 rounded-xl flex flex-col items-center gap-1 border border-slate-700">
+
+           {/* Update Bath Button with Cost */}
+           <button
+             onClick={bathMonster}
+             disabled={!canBath}
+             className={`p-3 rounded-xl flex flex-col items-center gap-1 border border-slate-700 ${canBath ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-900 opacity-50 cursor-not-allowed'}`}
+            >
               <Bath className="text-blue-400" />
               <span className="text-sm font-bold">อาบน้ำ</span>
-              <span className="text-[10px] text-slate-400">+Mood</span>
+              <span className={`text-[10px] ${canBath ? 'text-slate-400' : 'text-red-400'}`}>
+                  -5 Energy
+              </span>
            </button>
 
-           {/* New Sleep Button */}
             <button onClick={toggleSleep} className="col-span-2 bg-indigo-900/50 hover:bg-indigo-800/50 p-3 rounded-xl flex items-center justify-center gap-2 border border-indigo-700">
                <Moon className="text-indigo-300" />
                <div>
@@ -164,7 +161,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // 3. BAG VIEW (Inventory)
   if (mode === 'bag') {
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
@@ -185,15 +181,43 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // 4. EVO VIEW (Real Logic)
+  // SHOP MODE
+  if (mode === 'shop') {
+    const shopItems = Object.values(ITEMS).filter(item => item.price && item.price > 0);
+    return (
+        <div className="h-full bg-slate-900 p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="font-bold text-blue-400 flex items-center gap-2"><ShoppingCart size={18}/> ร้านค้า</h3>
+                <div className="text-xs text-yellow-400 font-mono bg-slate-800 px-2 py-1 rounded">
+                    💰 {player.gold} G
+                </div>
+            </div>
+            <button onClick={onReturnToIdle} className="text-xs underline text-slate-500 self-end mb-2">Close</button>
+
+            <div className="flex-1 overflow-y-auto space-y-2">
+                {shopItems.map(item => (
+                    <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
+                        <div className="text-3xl bg-slate-700 w-12 h-12 flex items-center justify-center rounded-lg">{item.emoji}</div>
+                        <div className="flex-1">
+                            <div className="font-bold text-slate-200 text-sm">{item.name}</div>
+                            <div className="text-[10px] text-slate-400">{item.description}</div>
+                        </div>
+                        <button
+                            onClick={() => buyItem(item.id)}
+                            disabled={player.gold < (item.price || 0)}
+                            className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${player.gold >= (item.price || 0) ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                        >
+                            {item.price} G
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+  }
+
   if (mode === 'evo') {
      if (!myMonster) return null;
-     // Filter หาตัวที่เป็น Evo ของ Species เรา
-     // สมมติ Logic: Evo ID จะมีชื่อ Starter อยู่ใน ID (เช่น 'evo_pupper_terra')
-     // หรือเช็คจาก speciesId range ก็ได้ (Starter 1-10, Evo 11-19)
-
-     // วิธีง่ายสุดสำหรับ Data ชุดนี้: เช็คว่าชื่อ ID ของ Evo มีคำว่าชื่อ Starter เราไหม
-     // เช่น myMonster.id = 'starter_pupper' -> หาคำว่า 'pupper' ใน Evo list
      const baseName = myMonster.id.replace('starter_', '').replace('evo_', '').split('_')[0];
      const possibleEvos = EVOLUTIONS.filter(e => e.id.includes(baseName));
 
@@ -213,7 +237,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                        <div className="text-[10px] text-slate-400">Req: Lv.10 + {evo.element} Stone</div>
                      </div>
                   </div>
-                  {/* ปุ่ม Evolve (Disable ไว้ก่อน) */}
                   <button disabled className="px-3 py-1 bg-slate-900 text-slate-600 text-xs rounded border border-slate-800">Locked</button>
                </div>
             ))}
@@ -244,7 +267,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                </div>
             </div>
 
-            {/* Feedback Toast */}
             {trainingResult && (
                 <div className="absolute top-16 animate-in fade-in zoom-in duration-300 bg-slate-800/90 border border-orange-500/50 px-4 py-2 rounded-lg text-center shadow-xl">
                     <div className="text-orange-400 font-bold text-lg uppercase">{trainingResult.stat} +{trainingResult.value}</div>
@@ -272,7 +294,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     const { logs, isActive, result, onFlee } = battleState;
     return (
       <div className="h-full flex flex-col bg-slate-900 border-t border-slate-700">
-         {/* Logs Area */}
          <div className="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-xs bg-black/20">
             {logs.length === 0 && <div className="text-slate-600 italic text-center mt-4">...Battle Starting...</div>}
             {logs.map(log => (
@@ -284,7 +305,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
             <div ref={logEndRef} />
          </div>
 
-         {/* Controls */}
          <div className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
             {!isActive && result ? (
                canCloseBattle ? (
@@ -315,7 +335,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // 7. SETTINGS VIEW
   if (mode === 'settings') {
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col gap-4">
@@ -339,8 +358,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // Placeholders for Shop, Explore
-  if (['shop', 'explore'].includes(mode)) {
+  if (['explore'].includes(mode)) {
      return (
         <div className="h-full bg-slate-900 p-4 flex flex-col items-center justify-center text-center">
            <h3 className="font-bold text-xl text-slate-500 uppercase mb-2">{mode}</h3>
