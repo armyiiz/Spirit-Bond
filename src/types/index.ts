@@ -108,6 +108,7 @@ export interface GameState {
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;
   setActiveRoute: (routeId: string | null) => void;
+  clearActiveRoute: () => void;
 }
 
 export interface LootTable {
