@@ -8,7 +8,7 @@ export const ITEMS: Record<string, Item> = {
     description: 'เนื้อชิ้นโต เพิ่มความอิ่มได้มาก',
     effect: { hunger: 20, hp: 10 },
     emoji: '🍖',
-    price: 3
+    price: 5
   },
   'food_apple': {
     id: 'food_apple',
@@ -17,7 +17,7 @@ export const ITEMS: Record<string, Item> = {
     description: 'ผลไม้สดชื่น เพิ่มอารมณ์ดี',
     effect: { hunger: 10, mood: 5, hp: 5 },
     emoji: '🍎',
-    price: 1
+    price: 3
   },
   'potion_hp': {
     id: 'potion_hp',
@@ -31,8 +31,8 @@ export const ITEMS: Record<string, Item> = {
   'potion_super': {
     id: 'potion_super',
     type: 'consumable',
-    name: 'น้ำยาฟื้นฟูระดับสูง',
-    description: 'ฟื้นฟูพลังชีวิต 50% ของ HP สูงสุด',
+    name: 'น้ำยาฟื้นฟู (ใหญ่)',
+    description: 'ฟื้นฟู 50% ของ HP สูงสุด',
     effect: { hpPercent: 50 },
     emoji: '⚗️',
     price: 5

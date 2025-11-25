@@ -10,9 +10,9 @@ export interface Stats {
 }
 
 export interface Vitals {
-  hunger: number; // 0-100, decreases over time
-  mood: number;   // 0-100
-  energy: number; // 0-100, used for training
+  hunger: number;
+  mood: number;
+  energy: number;
 }
 
 export interface Monster {
@@ -20,16 +20,16 @@ export interface Monster {
   speciesId: number;
   name: string;
   element: ElementType;
-  stage: number; // 1 = Baby/Starter
+  stage: number;
   level: number;
   exp: number;
   maxExp: number;
   stats: Stats;
   vitals: Vitals;
-  poopCount?: number; // Optional for static data
+  poopCount?: number;
   appearance: {
     emoji: string;
-    color: string; // Tailwind color class e.g. "bg-red-500"
+    color: string;
   };
 }
 
@@ -38,8 +38,8 @@ export type ItemType = 'consumable' | 'evo_material';
 export interface ItemEffect {
   hunger?: number;
   mood?: number;
-  hp?: number;
-  hpPercent?: number;
+  hp?: number;        // Flat heal
+  hpPercent?: number; // % heal (Stackable)
 }
 
 export interface Item {
@@ -49,7 +49,7 @@ export interface Item {
   description: string;
   effect?: ItemEffect;
   emoji: string;
-  price?: number;
+  price?: number; // For Shop
 }
 
 export interface InventoryItem {
@@ -68,22 +68,21 @@ export interface GameState {
   myMonster: Monster | null;
   inventory: InventoryItem[];
   lastSaveTime: number;
-  isSleeping: boolean; // Added
+  isSleeping: boolean;
 
   // Actions
   startGame: (starterId: number) => void;
-  tick: () => void; // Main loop tick
+  tick: () => void;
   updateVitals: (delta: Partial<Vitals>) => void;
   addItem: (itemId: string, count: number) => void;
-  buyItem: (itemId: string) => void;
   useItem: (itemId: string) => void;
+  buyItem: (itemId: string) => void; // New Shop Action
   trainMonster: () => { stat: string; value: number } | undefined;
   feedGeneric: () => void;
+  bathMonster: () => void; // New Bath Action
   cleanPoop: () => void;
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
-
-  // New Actions
   toggleSleep: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;

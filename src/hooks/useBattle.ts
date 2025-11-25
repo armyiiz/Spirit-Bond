@@ -15,13 +15,11 @@ export const useBattle = () => {
   const [enemy, setEnemy] = useState<Monster | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  // Use Refs for Logic Loop
   const playerHpRef = useRef(0);
   const enemyHpRef = useRef(0);
   const playerGaugeRef = useRef(0);
   const enemyGaugeRef = useRef(0);
 
-  // UI State (Sync with Refs for display)
   const [playerHp, setPlayerHp] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
   const [playerGauge, setPlayerGauge] = useState(0);
@@ -34,17 +32,16 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    // 1. Logic: Filter ศัตรูเฉพาะ Stage เดียวกัน
     const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
     const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
-
     const randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
 
-    // 2. Level Logic
+    // BALANCING UPDATE:
+    // 35% Weak (-1), 60% Equal (0), 5% Strong (+1)
     const rand = Math.random();
     let levelDiff = 0;
-    if (rand < 0.5) levelDiff = 0;
-    else if (rand < 0.8) levelDiff = -1;
+    if (rand < 0.35) levelDiff = -1;
+    else if (rand < 0.95) levelDiff = 0;
     else levelDiff = 1;
 
     const enemyLevel = Math.max(1, myMonster.level + levelDiff);
@@ -66,16 +63,13 @@ export const useBattle = () => {
       poopCount: 0
     };
 
-    // Setup Battle
     setEnemy(newEnemy);
 
-    // Player setup
     playerHpRef.current = myMonster.stats.hp;
     setPlayerHp(myMonster.stats.hp);
     playerGaugeRef.current = 0;
     setPlayerGauge(0);
 
-    // Enemy setup
     enemyHpRef.current = newEnemy.stats.maxHp;
     setEnemyHp(newEnemy.stats.maxHp);
     enemyGaugeRef.current = 0;
@@ -93,23 +87,16 @@ export const useBattle = () => {
     setResult(finalResult);
 
     if (finalResult === 'win') {
-       // Win Logic
        if (enemy) {
           const gold = enemy.level * 10;
           const exp = enemy.level * 20;
           addLog(`🏆 ชนะ! ได้รับ ${gold}G, ${exp}EXP`, 'text-yellow-400');
-
-          // Use the new atomic update to prevent race conditions
           gainRewards(exp, gold, playerHpRef.current);
           updateVitals({ hunger: -2, energy: -5 });
-
-          // Removed the conflicting setMyMonster call here
        }
     } else if (finalResult === 'lose') {
-       // Lose Logic
        addLog('💀 พ่ายแพ้... (HP เหลือ 1)', 'text-red-600');
        updateVitals({ mood: -20, energy: -10 });
-       // HP drops to 1
        if (myMonster) {
           setMyMonster({
              ...myMonster,
@@ -117,18 +104,15 @@ export const useBattle = () => {
           });
        }
     } else {
-        // Fled
         addLog('💨 หนีสำเร็จ!', 'text-slate-400');
         updateVitals({ energy: -5 });
     }
   }, [enemy, gainRewards, updateVitals, myMonster, setMyMonster, addLog]);
 
-  // Battle Loop
   useEffect(() => {
     if (!isActive || !myMonster || !enemy) return;
 
     const interval = setInterval(() => {
-       // Check End
        if (playerHpRef.current <= 0) {
          endBattle('lose');
          return;
@@ -138,23 +122,18 @@ export const useBattle = () => {
          return;
        }
 
-       // Logic Tick
-       // Player Gauge
        playerGaugeRef.current += (myMonster.stats.spd * 0.1);
        if (playerGaugeRef.current >= 100) {
           playerGaugeRef.current = 0;
-          // Attack
           const dmg = Math.max(1, Math.floor(myMonster.stats.atk - (enemy.stats.def * 0.5)));
           enemyHpRef.current -= dmg;
           setEnemyHp(enemyHpRef.current);
           addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
        }
 
-       // Enemy Gauge
        enemyGaugeRef.current += (enemy.stats.spd * 0.1);
        if (enemyGaugeRef.current >= 100) {
           enemyGaugeRef.current = 0;
-          // Enemy Attack
           const dmg = Math.max(1, Math.floor(enemy.stats.atk - (myMonster.stats.def * 0.5)));
           playerHpRef.current -= dmg;
           setPlayerHp(playerHpRef.current);

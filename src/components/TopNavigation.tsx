@@ -14,7 +14,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, disabled })
     { id: 'care', label: 'ดูแล', icon: HeartHandshake, color: 'text-pink-400', target: 'care' },
     { id: 'explore', label: 'สำรวจ', icon: Map, color: 'text-emerald-400', target: 'explore' },
     { id: 'bag', label: 'กระเป๋า', icon: Backpack, color: 'text-amber-400', target: 'bag' },
-    // Shop Button (New!)
     { id: 'shop', label: 'ร้านค้า', icon: ShoppingCart, color: 'text-blue-400', target: 'shop' },
     { id: 'evo', label: 'วิวัฒนาการ', icon: Sparkles, color: 'text-purple-400', target: 'evo' },
     { id: 'settings', label: 'ตั้งค่า', icon: Settings, color: 'text-slate-400', target: 'settings' },
