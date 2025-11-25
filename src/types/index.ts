@@ -63,12 +63,20 @@ export interface Player {
   level: number;
 }
 
+export interface SleepSummary {
+  duration: number; // in seconds
+  hpGained: number;
+  energyGained: number;
+}
+
 export interface GameState {
   player: Player;
   myMonster: Monster | null;
   inventory: InventoryItem[];
   lastSaveTime: number;
   isSleeping: boolean;
+  sleepTimestamp: number | null;
+  sleepSummary: SleepSummary | null;
 
   // Actions
   startGame: (starterId: number) => void;
@@ -84,6 +92,8 @@ export interface GameState {
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
   toggleSleep: () => void;
+  wakeUp: () => void;
+  clearSleepSummary: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;
 }

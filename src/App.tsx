@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from './store/gameStore';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useBattle } from './hooks/useBattle';
@@ -10,6 +10,7 @@ import MonsterStage from './components/MonsterStage';
 import TopNavigation from './components/TopNavigation';
 import ActionConsole, { ConsoleMode } from './components/ActionConsole';
 import StatusStrip from './components/StatusStrip';
+import SleepSummaryModal from './components/SleepSummaryModal';
 
 function App() {
   const { myMonster } = useGameStore();
@@ -21,6 +22,11 @@ function App() {
 
   // Initialize Game Loop
   useGameLoop();
+
+  // On app load, check if we need to wake up
+  useEffect(() => {
+    useGameStore.getState().wakeUp();
+  }, []);
 
   // Handle Navigation Logic
   const handleModeChange = (mode: ConsoleMode) => {
@@ -57,6 +63,9 @@ function App() {
   // 3. Main Game Loop
   return (
     <div className="h-[100dvh] bg-slate-900 text-white flex flex-col relative max-w-md mx-auto shadow-2xl overflow-hidden">
+      {/* Overlays */}
+      <SleepSummaryModal />
+
       {/* Header (Player Info) */}
       <div className="flex-none z-20">
         <Header />

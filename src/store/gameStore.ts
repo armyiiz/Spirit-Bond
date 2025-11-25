@@ -19,6 +19,8 @@ export const useGameStore = create<GameState>()(
       ],
       lastSaveTime: Date.now(),
       isSleeping: false,
+      sleepTimestamp: null,
+      sleepSummary: null,
 
       startGame: (starterSpeciesId: number) => {
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
@@ -37,8 +39,54 @@ export const useGameStore = create<GameState>()(
       setMyMonster: (m) => set({ myMonster: m }),
 
       toggleSleep: () => {
-         const current = get().isSleeping;
-         set({ isSleeping: !current });
+        const state = get();
+        if (!state.isSleeping) {
+          // Going to sleep
+          set({ isSleeping: true, sleepTimestamp: Date.now() });
+        } else {
+          // Waking up manually
+          state.wakeUp();
+        }
+      },
+
+      wakeUp: () => {
+        const state = get();
+        const { myMonster, isSleeping, sleepTimestamp } = state;
+
+        if (myMonster && isSleeping && sleepTimestamp) {
+          const now = Date.now();
+          const secondsAsleep = (now - sleepTimestamp) / 1000;
+          const maxHp = myMonster.stats.maxHp;
+          const maxEnergy = 100; // Max energy is 100
+
+          const hpRecoveryRate = maxHp / 7200; // 2 hours to full
+          const energyRecoveryRate = maxEnergy / 7200; // 2 hours to full
+
+          const hpGained = Math.floor(secondsAsleep * hpRecoveryRate);
+          const energyGained = Math.floor(secondsAsleep * energyRecoveryRate);
+
+          const newHp = Math.min(maxHp, myMonster.stats.hp + hpGained);
+          const newEnergy = Math.min(maxEnergy, myMonster.vitals.energy + energyGained);
+
+          set({
+            myMonster: {
+              ...myMonster,
+              stats: { ...myMonster.stats, hp: newHp },
+              vitals: { ...myMonster.vitals, energy: newEnergy },
+            },
+            isSleeping: false,
+            sleepTimestamp: null,
+            sleepSummary: {
+              duration: secondsAsleep,
+              hpGained: newHp - myMonster.stats.hp,
+              energyGained: newEnergy - myMonster.vitals.energy,
+            },
+          });
+        }
+      },
+
+      clearSleepSummary: () => {
+        set({ sleepSummary: null });
       },
 
       tick: () => {
