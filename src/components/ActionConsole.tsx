@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut } from 'lucide-react';
+import { ITEMS } from '../data/items';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, CircleDollarSign } from 'lucide-react';
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -19,7 +20,7 @@ interface ActionConsoleProps {
 }
 
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle }) => {
-  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave } = useGameStore();
+  const { myMonster, player, inventory, useItem, buyItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
@@ -63,7 +64,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   };
 
   // 6. SLEEP OVERLAY
-  if (isSleeping && mode !== 'settings') { // Allow entering settings even if sleeping
+  if (isSleeping && mode !== 'settings' && mode !== 'shop') { // Allow entering settings and shop even if sleeping
      return (
        <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
           <Moon size={48} className="text-blue-200 mb-4" />
@@ -339,8 +340,55 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // Placeholders for Shop, Explore
-  if (['shop', 'explore'].includes(mode)) {
+  // 8. SHOP VIEW
+  if (mode === 'shop') {
+    const shopItems = Object.values(ITEMS).filter(item => item.price && item.price > 0);
+
+    return (
+      <div className="h-full bg-slate-900 p-4 flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+             <ShoppingCart className="text-blue-400" />
+             <h3 className="font-bold text-blue-400">ร้านค้า</h3>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-full">
+             <CircleDollarSign size={14} className="text-yellow-400"/>
+             <span className="text-yellow-400 font-mono font-bold text-sm">{player.gold} G</span>
+          </div>
+          <button onClick={onReturnToIdle} className="text-xs underline text-slate-500 ml-2">Close</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-2">
+           {shopItems.map(item => (
+             <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
+                <div className="text-2xl bg-slate-900 w-12 h-12 flex items-center justify-center rounded-lg border border-slate-600">
+                   {item.emoji}
+                </div>
+                <div className="flex-1">
+                   <div className="text-sm font-bold text-slate-200">{item.name}</div>
+                   <div className="text-[10px] text-slate-400">{item.description}</div>
+                </div>
+                <button
+                   onClick={() => buyItem(item.id)}
+                   disabled={player.gold < (item.price || 0)}
+                   className={`px-4 py-2 rounded-lg font-bold text-xs flex flex-col items-center min-w-[60px] ${
+                      player.gold >= (item.price || 0)
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'
+                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                   }`}
+                >
+                   <span>Buy</span>
+                   <span className="text-[10px] opacity-80">{item.price} G</span>
+                </button>
+             </div>
+           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Placeholder for Explore
+  if (mode === 'explore') {
      return (
         <div className="h-full bg-slate-900 p-4 flex flex-col items-center justify-center text-center">
            <h3 className="font-bold text-xl text-slate-500 uppercase mb-2">{mode}</h3>

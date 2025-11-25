@@ -123,6 +123,17 @@ export const useGameStore = create<GameState>()(
         set({ inventory });
       },
 
+      buyItem: (itemId) => {
+        const state = get();
+        const item = ITEMS[itemId];
+        if (!item || !item.price) return;
+
+        if (state.player.gold >= item.price) {
+           set(s => ({ player: { ...s.player, gold: s.player.gold - (item.price || 0) } }));
+           state.addItem(itemId, 1);
+        }
+      },
+
       useItem: (itemId) => {
         const state = get();
         const inventory = [...state.inventory];
@@ -138,9 +149,20 @@ export const useGameStore = create<GameState>()(
                hunger: itemDef.effect.hunger || 0,
                mood: itemDef.effect.mood || 0
              });
+
+             // Logic HP
+             let healAmount = 0;
+
              if (itemDef.effect.hp) {
-               // Heal logic
-               const newHp = Math.min(monster.stats.maxHp, monster.stats.hp + itemDef.effect.hp);
+               healAmount += itemDef.effect.hp;
+             }
+
+             if (itemDef.effect.hpPercent) {
+               healAmount += Math.floor(monster.stats.maxHp * (itemDef.effect.hpPercent / 100));
+             }
+
+             if (healAmount > 0) {
+               const newHp = Math.min(monster.stats.maxHp, monster.stats.hp + healAmount);
                set(s => ({
                  myMonster: s.myMonster ? { ...s.myMonster, stats: { ...s.myMonster.stats, hp: newHp } } : null
                }));

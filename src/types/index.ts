@@ -39,6 +39,7 @@ export interface ItemEffect {
   hunger?: number;
   mood?: number;
   hp?: number;
+  hpPercent?: number;
 }
 
 export interface Item {
@@ -48,6 +49,7 @@ export interface Item {
   description: string;
   effect?: ItemEffect;
   emoji: string;
+  price?: number;
 }
 
 export interface InventoryItem {
@@ -73,6 +75,7 @@ export interface GameState {
   tick: () => void; // Main loop tick
   updateVitals: (delta: Partial<Vitals>) => void;
   addItem: (itemId: string, count: number) => void;
+  buyItem: (itemId: string) => void;
   useItem: (itemId: string) => void;
   trainMonster: () => { stat: string; value: number } | undefined;
   feedGeneric: () => void;
