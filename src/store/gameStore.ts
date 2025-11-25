@@ -19,6 +19,11 @@ export const useGameStore = create<GameState>()(
       ],
       lastSaveTime: Date.now(),
       isSleeping: false,
+      sleepTimestamp: null,
+      sleepSummary: null,
+      activeRouteId: null,
+
+      setActiveRoute: (routeId) => set({ activeRouteId: routeId }),
 
       startGame: (starterSpeciesId: number) => {
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
@@ -37,8 +42,54 @@ export const useGameStore = create<GameState>()(
       setMyMonster: (m) => set({ myMonster: m }),
 
       toggleSleep: () => {
-         const current = get().isSleeping;
-         set({ isSleeping: !current });
+        const state = get();
+        if (!state.isSleeping) {
+          // Going to sleep
+          set({ isSleeping: true, sleepTimestamp: Date.now() });
+        } else {
+          // Waking up manually
+          state.wakeUp();
+        }
+      },
+
+      wakeUp: () => {
+        const state = get();
+        const { myMonster, isSleeping, sleepTimestamp } = state;
+
+        if (myMonster && isSleeping && sleepTimestamp) {
+          const now = Date.now();
+          const secondsAsleep = (now - sleepTimestamp) / 1000;
+          const maxHp = myMonster.stats.maxHp;
+          const maxEnergy = 100; // Max energy is 100
+
+          const hpRecoveryRate = maxHp / 7200; // 2 hours to full
+          const energyRecoveryRate = maxEnergy / 7200; // 2 hours to full
+
+          const hpGained = Math.floor(secondsAsleep * hpRecoveryRate);
+          const energyGained = Math.floor(secondsAsleep * energyRecoveryRate);
+
+          const newHp = Math.min(maxHp, myMonster.stats.hp + hpGained);
+          const newEnergy = Math.min(maxEnergy, myMonster.vitals.energy + energyGained);
+
+          set({
+            myMonster: {
+              ...myMonster,
+              stats: { ...myMonster.stats, hp: newHp },
+              vitals: { ...myMonster.vitals, energy: newEnergy },
+            },
+            isSleeping: false,
+            sleepTimestamp: null,
+            sleepSummary: {
+              duration: secondsAsleep,
+              hpGained: newHp - myMonster.stats.hp,
+              energyGained: newEnergy - myMonster.vitals.energy,
+            },
+          });
+        }
+      },
+
+      clearSleepSummary: () => {
+        set({ sleepSummary: null });
       },
 
       tick: () => {
@@ -51,10 +102,12 @@ export const useGameStore = create<GameState>()(
         let newPoopCount = monster.poopCount || 0;
 
         if (state.isSleeping) {
-           // Sleep: Heal HP 5% per tick (Faster regen), Energy +2
-           const healAmount = Math.ceil(monster.stats.maxHp * 0.05);
-           newHp = Math.min(monster.stats.maxHp, newHp + healAmount);
-           newVitals.energy = Math.min(100, newVitals.energy + 2);
+           // [FIXED] ใช้สูตรเดียวกับ Offline: Max / 7200 (เต็มใน 2 ชม.)
+           const hpGain = monster.stats.maxHp / 7200;
+           const energyGain = 100 / 7200;
+
+           newHp = Math.min(monster.stats.maxHp, newHp + hpGain);
+           newVitals.energy = Math.min(100, newVitals.energy + energyGain);
 
            // No poop while sleeping
         } else {

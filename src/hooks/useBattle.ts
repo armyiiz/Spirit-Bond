@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { MONSTER_DB } from '../data/monsters';
+import { ENEMIES } from '../data/enemies';
+import { ROUTES } from '../data/routes';
 import { Monster } from '../types';
 
 export type BattleState = 'idle' | 'fighting' | 'victory' | 'defeat';
@@ -32,9 +34,30 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
-    const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
-    const randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+    const activeRouteId = useGameStore.getState().activeRouteId;
+    let randomBase: Monster;
+
+    if (activeRouteId) {
+        const route = ROUTES.find(r => r.id === activeRouteId);
+        if (route) {
+            // 70% chance for minion, 30% for boss
+            const isBossFight = route.bossId && Math.random() < 0.3;
+            const enemyId = isBossFight
+                ? route.bossId
+                : route.enemies[Math.floor(Math.random() * route.enemies.length)];
+
+            randomBase = JSON.parse(JSON.stringify(ENEMIES[enemyId!]));
+        } else {
+            // Fallback if route not found
+            const enemyPool = MONSTER_DB;
+            randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+        }
+    } else {
+        // Original fallback logic for random battles
+        const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
+        const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
+        randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+    }
 
     // BALANCING UPDATE:
     // 35% Weak (-1), 60% Equal (0), 5% Strong (+1)
