@@ -35,8 +35,9 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    let randomBase: Monster;
+    let randomBase: Monster | null = null;
 
+    // 1. Try to load enemy from Route
     if (activeRouteId) {
         const route = ROUTES.find(r => r.id === activeRouteId);
         if (route) {
@@ -46,17 +47,26 @@ export const useBattle = () => {
                 ? route.bossId
                 : route.enemies[Math.floor(Math.random() * route.enemies.length)];
 
-            randomBase = JSON.parse(JSON.stringify(ENEMIES[enemyId!]));
-        } else {
-            // Fallback if route not found
-            const enemyPool = MONSTER_DB;
-            randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+            // [SAFETY FIX] Check if ID exists in ENEMIES db
+            if (enemyId && ENEMIES[enemyId]) {
+                randomBase = JSON.parse(JSON.stringify(ENEMIES[enemyId]));
+            } else {
+                console.warn(`Enemy ${enemyId} not found, falling back.`);
+            }
         }
-    } else {
-        // Original fallback logic for random battles
+    }
+
+    // 2. Fallback if no route or invalid data
+    if (!randomBase) {
         const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
         const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
-        randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+        randomBase = JSON.parse(JSON.stringify(enemyPool[Math.floor(Math.random() * enemyPool.length)]));
+    }
+
+    // [TYPE GUARD] Ensure randomBase is not null before proceeding
+    if (!randomBase) {
+        console.error("Failed to find a valid enemy. Aborting battle start.");
+        return;
     }
 
     // BALANCING UPDATE:

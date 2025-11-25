@@ -18,6 +18,7 @@ export interface Vitals {
 export interface Monster {
   id: string;
   speciesId: number;
+  parentSpeciesId?: number;
   name: string;
   element: ElementType;
   stage: number;
@@ -38,8 +39,14 @@ export type ItemType = 'consumable' | 'evo_material';
 export interface ItemEffect {
   hunger?: number;
   mood?: number;
-  hp?: number;        // Flat heal
-  hpPercent?: number; // % heal (Stackable)
+  hp?: number;
+  hpPercent?: number;
+}
+
+// [NEW] Recipe System
+export interface ItemRecipe {
+  gold: number;
+  ingredients: { itemId: string; count: number }[];
 }
 
 export interface Item {
@@ -49,7 +56,8 @@ export interface Item {
   description: string;
   effect?: ItemEffect;
   emoji: string;
-  price?: number; // For Shop
+  price?: number; // Selling Price / Buying Price
+  recipe?: ItemRecipe; // [NEW] If exists, this item is craftable
 }
 
 export interface InventoryItem {
@@ -64,7 +72,7 @@ export interface Player {
 }
 
 export interface SleepSummary {
-  duration: number; // in seconds
+  duration: number;
   hpGained: number;
   energyGained: number;
 }
@@ -77,6 +85,7 @@ export interface GameState {
   isSleeping: boolean;
   sleepTimestamp: number | null;
   sleepSummary: SleepSummary | null;
+  activeRouteId: string | null;
 
   // Actions
   startGame: (starterId: number) => void;
@@ -84,10 +93,12 @@ export interface GameState {
   updateVitals: (delta: Partial<Vitals>) => void;
   addItem: (itemId: string, count: number) => void;
   useItem: (itemId: string) => void;
-  buyItem: (itemId: string) => void; // New Shop Action
+  buyItem: (itemId: string) => void;
+  craftItem: (itemId: string) => void; // [NEW] Crafting Action
+  evolveMonster: (targetSpeciesId: number, requiredItem: string) => void; // [NEW] Evolution Action
   trainMonster: () => { stat: string; value: number } | undefined;
   feedGeneric: () => void;
-  bathMonster: () => void; // New Bath Action
+  bathMonster: () => void;
   cleanPoop: () => void;
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
@@ -96,20 +107,19 @@ export interface GameState {
   clearSleepSummary: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;
-  activeRouteId: string | null;
   setActiveRoute: (routeId: string | null) => void;
 }
 
 export interface LootTable {
   itemId: string;
-  chance: number; // 0-1 (e.g., 0.5 = 50%)
+  chance: number;
 }
 
 export interface Enemy {
   id: string;
   name: string;
   element: ElementType;
-  levelRange: [number, number]; // [min, max] relative to player
+  levelRange: [number, number];
   stats: Stats;
   drops: LootTable[];
   isBoss?: boolean;
@@ -122,7 +132,7 @@ export interface Route {
   description: string;
   element: ElementType;
   requiredLevel: number;
-  enemies: string[]; // Enemy IDs
+  enemies: string[];
   bossId?: string;
-  color: string; // Tailwind class
+  color: string;
 }

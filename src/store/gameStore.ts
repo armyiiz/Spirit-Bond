@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Monster } from '../types';
-import { STARTERS } from '../data/monsters';
+import { STARTERS, EVOLUTIONS } from '../data/monsters'; // Import EVOLUTIONS
 import { ITEMS } from '../data/items';
 
 export const useGameStore = create<GameState>()(
@@ -44,10 +44,8 @@ export const useGameStore = create<GameState>()(
       toggleSleep: () => {
         const state = get();
         if (!state.isSleeping) {
-          // Going to sleep
           set({ isSleeping: true, sleepTimestamp: Date.now() });
         } else {
-          // Waking up manually
           state.wakeUp();
         }
       },
@@ -60,10 +58,10 @@ export const useGameStore = create<GameState>()(
           const now = Date.now();
           const secondsAsleep = (now - sleepTimestamp) / 1000;
           const maxHp = myMonster.stats.maxHp;
-          const maxEnergy = 100; // Max energy is 100
+          const maxEnergy = 100;
 
-          const hpRecoveryRate = maxHp / 7200; // 2 hours to full
-          const energyRecoveryRate = maxEnergy / 7200; // 2 hours to full
+          const hpRecoveryRate = maxHp / 7200;
+          const energyRecoveryRate = maxEnergy / 7200;
 
           const hpGained = Math.floor(secondsAsleep * hpRecoveryRate);
           const energyGained = Math.floor(secondsAsleep * energyRecoveryRate);
@@ -102,25 +100,16 @@ export const useGameStore = create<GameState>()(
         let newPoopCount = monster.poopCount || 0;
 
         if (state.isSleeping) {
-           // [FIXED] ใช้สูตรเดียวกับ Offline: Max / 7200 (เต็มใน 2 ชม.)
            const hpGain = monster.stats.maxHp / 7200;
            const energyGain = 100 / 7200;
-
            newHp = Math.min(monster.stats.maxHp, newHp + hpGain);
            newVitals.energy = Math.min(100, newVitals.energy + energyGain);
-
-           // No poop while sleeping
         } else {
-           // Awake
            if (newVitals.energy < 100) newVitals.energy += 0.5;
            if (newVitals.hunger > 0) newVitals.hunger -= 0.2;
-
-           // Poop Logic: If poop exists, Mood drops faster
            if (newPoopCount > 0) {
-              if (newVitals.mood > 0) newVitals.mood -= 0.5;
+              if (newVitals.mood > 0) newVitals.mood -= 0.5 * newPoopCount;
            }
-
-           // Chance to poop (0.5% per tick)
            if (Math.random() < 0.005) {
                newPoopCount = Math.min(5, newPoopCount + 1);
            }
@@ -175,6 +164,68 @@ export const useGameStore = create<GameState>()(
          }
       },
 
+      craftItem: (itemId) => {
+        const state = get();
+        const item = ITEMS[itemId];
+        if (!item || !item.recipe) return;
+
+        const recipe = item.recipe;
+        if (state.player.gold < recipe.gold) return;
+
+        const hasIngredients = recipe.ingredients.every(req => {
+            const found = state.inventory.find(i => i.item.id === req.itemId);
+            return found && found.count >= req.count;
+        });
+
+        if (!hasIngredients) return;
+
+        let newInventory = [...state.inventory];
+        recipe.ingredients.forEach(req => {
+            const idx = newInventory.findIndex(i => i.item.id === req.itemId);
+            if (idx !== -1) {
+                newInventory[idx].count -= req.count;
+            }
+        });
+        newInventory = newInventory.filter(i => i.count > 0);
+
+        set({
+            player: { ...state.player, gold: state.player.gold - recipe.gold },
+            inventory: newInventory
+        });
+        state.addItem(itemId, 1);
+      },
+
+      evolveMonster: (targetSpeciesId, requiredItemId) => {
+          const state = get();
+          const monster = state.myMonster;
+          if (!monster) return;
+
+          const invIdx = state.inventory.findIndex(i => i.item.id === requiredItemId);
+          if (invIdx === -1) return;
+
+          const targetData = EVOLUTIONS.find(e => e.speciesId === targetSpeciesId);
+          if (!targetData) return;
+
+          const newInventory = [...state.inventory];
+          newInventory[invIdx].count -= 1;
+          if (newInventory[invIdx].count <= 0) newInventory.splice(invIdx, 1);
+
+          const newMonster: Monster = {
+              ...targetData,
+              level: monster.level,
+              exp: monster.exp,
+              maxExp: monster.maxExp,
+              poopCount: monster.poopCount,
+              vitals: { hunger: 100, mood: 100, energy: 100 },
+              stats: { ...targetData.stats }, // Full stats overwrite
+          };
+
+          set({
+              myMonster: newMonster,
+              inventory: newInventory
+          });
+      },
+
       useItem: (itemId) => {
         const state = get();
         const inventory = [...state.inventory];
@@ -184,14 +235,12 @@ export const useGameStore = create<GameState>()(
         if (itemIndex >= 0 && inventory[itemIndex].count > 0 && monster) {
            const itemDef = inventory[itemIndex].item;
 
-           // Apply vitals
            if (itemDef.effect) {
              state.updateVitals({
                hunger: itemDef.effect.hunger || 0,
                mood: itemDef.effect.mood || 0
              });
 
-             // Apply HP (Stacking Flat + Percent)
              let healAmount = 0;
              if (itemDef.effect.hp) healAmount += itemDef.effect.hp;
              if (itemDef.effect.hpPercent) {
@@ -254,7 +303,6 @@ export const useGameStore = create<GameState>()(
          const monster = state.myMonster;
          if (!monster) return;
 
-         // Nerf: Cost 5 Energy, Limit if mood full
          if (monster.vitals.mood < 100 && monster.vitals.energy >= 5) {
              state.updateVitals({ mood: 10, energy: -5 });
          }
