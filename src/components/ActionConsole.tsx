@@ -4,7 +4,7 @@ import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
 import { ITEMS } from '../data/items'; // Import items for shop
 import { ROUTES } from '../data/routes';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock } from 'lucide-react';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle } from 'lucide-react'; // เพิ่ม icon
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
 
@@ -22,7 +22,9 @@ interface ActionConsoleProps {
 }
 
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle, onModeChange }) => {
-  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster } = useGameStore();
+  const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster,
+          activeRouteId, explorationStep, advanceExploration, resetExploration // [NEW] ดึง state มาใช้
+        } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
@@ -115,7 +117,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   }
 
   if (mode === 'care') {
-    const poopCount = (myMonster as any).poopCount || 0;
+    const poopCount = myMonster?.poopCount || 0;
     const canBath = myMonster && myMonster.vitals.energy >= 5 && myMonster.vitals.mood < 100;
 
     return (
@@ -292,8 +294,23 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- BATTLE MODE (แก้ไขส่วน Result) ---
   if (mode === 'battle' && battleState) {
-    const { logs, isActive, result, onFlee } = battleState;
+    const { logs, isActive, result, onFlee, onRestart } = battleState;
+
+    // Logic ปุ่มจบการต่อสู้
+    const handleBattleEnd = () => {
+        if (result === 'win' && activeRouteId && explorationStep < 4) {
+            // ถ้าชนะ และยังไม่ถึงบอส (ด่าน < 5) -> ไปต่อ
+            advanceExploration();
+            onRestart(); // เริ่มสู้ใหม่ (StartBattle จะถูกเรียกอีกรอบ)
+        } else {
+            // ถ้าแพ้ หรือ จบบอส -> กลับบ้าน
+            resetExploration();
+            onReturnToIdle();
+        }
+    };
+
     return (
       <div className="h-full flex flex-col bg-slate-900 border-t border-slate-700">
          <div className="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-xs bg-black/20">
@@ -311,12 +328,14 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
             {!isActive && result ? (
                canCloseBattle ? (
                 <button
-                    onClick={onReturnToIdle}
-                    className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg animate-in fade-in zoom-in duration-300 ${
+                    onClick={handleBattleEnd}
+                    className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg animate-in fade-in zoom-in duration-300 flex items-center justify-center gap-2 ${
                     result === 'win' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-slate-700 text-white hover:bg-slate-600'
                     }`}
                 >
-                    {result === 'win' ? 'Victory! (Close)' : 'Defeated... (Close)'}
+                    {result === 'win'
+                        ? (activeRouteId && explorationStep < 4 ? <><span>ลุยต่อ (ด่าน {explorationStep + 2}/5)</span> <ArrowRightCircle size={16}/></> : '✅ ภารกิจสำเร็จ! (กลับบ้าน)')
+                        : '💀 พ่ายแพ้... (กลับบ้าน)'}
                 </button>
                ) : (
                  <div className="flex-1 py-3 text-center text-slate-500 text-xs italic animate-pulse">

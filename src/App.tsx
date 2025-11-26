@@ -111,7 +111,7 @@ function App() {
             isActive: battle.isActive,
             result: battle.result,
             onFlee: battle.fleeBattle,
-            onRestart: handleBattleClose
+            onRestart: () => battle.startBattle() // [NEW] ส่งฟังก์ชันเริ่มใหม่เข้าไป
           } : undefined}
         />
       </div>
