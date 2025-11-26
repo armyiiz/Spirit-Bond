@@ -198,6 +198,12 @@ export const useGameStore = create<GameState>()(
         }
         if (newLevel > monster.level) newStats.hp = newStats.maxHp;
         set({ player: newPlayer, myMonster: { ...monster, level: newLevel, exp: newExp, maxExp: newMaxExp, stats: newStats } });
+      },
+      craftItem: (itemId) => {
+        console.log(`Crafting ${itemId} - Not implemented`);
+      },
+      evolveMonster: (targetSpeciesId, requiredItem) => {
+        console.log(`Evolving to ${targetSpeciesId} with ${requiredItem} - Not implemented`);
       }
     }),
     { name: 'spirit-bond-storage' }
