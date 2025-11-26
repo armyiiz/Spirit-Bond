@@ -11,7 +11,10 @@ export type BattleResult = 'win' | 'lose' | 'fled' | null;
 
 export const useBattle = () => {
   const { myMonster, updateVitals, gainRewards, setMyMonster } = useGameStore();
-  const activeRouteId = useGameStore(state => state.activeRouteId);
+  const { activeRouteId, explorationStep } = useGameStore(state => ({
+      activeRouteId: state.activeRouteId,
+      explorationStep: state.explorationStep || 0
+  }));
 
   const [isActive, setIsActive] = useState(false);
   const [result, setResult] = useState<BattleResult>(null);
@@ -35,32 +38,60 @@ export const useBattle = () => {
   const startBattle = useCallback(() => {
     if (!myMonster) return;
 
-    let randomBase: Monster;
+    let randomBase: Monster | null = null;
 
+    // 1. Try to load enemy from Route
     if (activeRouteId) {
         const route = ROUTES.find(r => r.id === activeRouteId);
         if (route) {
-            // 70% chance for minion, 30% for boss
-            const isBossFight = route.bossId && Math.random() < 0.3;
-            const enemyId = isBossFight
-                ? route.bossId
-                : route.enemies[Math.floor(Math.random() * route.enemies.length)];
+            // Logic: Step 0-3 = Minions, Step 4 = Boss
+            let enemyId: string | undefined;
 
-            randomBase = JSON.parse(JSON.stringify(ENEMIES[enemyId!]));
-        } else {
-            // Fallback if route not found
-            const enemyPool = MONSTER_DB;
-            randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
+            if (explorationStep >= 4 && route.bossId) {
+                enemyId = route.bossId; // BOSS FIGHT!
+            } else {
+                // Minion Fight
+                enemyId = route.enemies[Math.floor(Math.random() * route.enemies.length)];
+            }
+
+            // [CRITICAL FIX] Manual Mapping Enemy -> Monster
+            // ป้องกันจอขาวโดยการสร้าง Object Monster ขึ้นมาใหม่และใส่ค่า Default ให้ครบ
+            if (enemyId && ENEMIES[enemyId]) {
+                const enemyData = ENEMIES[enemyId];
+                randomBase = {
+                    id: enemyData.id,
+                    speciesId: 0,
+                    name: enemyData.name,
+                    element: enemyData.element,
+                    stage: 1,
+                    level: 1,
+                    exp: 0,
+                    maxExp: 100,
+                    stats: { ...enemyData.stats },
+                    // ใส่ค่า Dummy Vitals เพื่อไม่ให้ Crash
+                    vitals: { hunger: 100, mood: 100, energy: 100 },
+                    appearance: {
+                        emoji: enemyData.emoji,
+                        color: 'bg-slate-800'
+                    },
+                    poopCount: 0
+                };
+            } else {
+                console.warn(`Enemy ${enemyId} not found, falling back.`);
+            }
         }
-    } else {
-        // Original fallback logic for random battles
-        const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
-        const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
-        randomBase = enemyPool[Math.floor(Math.random() * enemyPool.length)];
     }
 
-    // BALANCING UPDATE:
-    // 35% Weak (-1), 60% Equal (0), 5% Strong (+1)
+    // 2. Fallback Logic
+    if (!randomBase) {
+        const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster.stage);
+        const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
+        randomBase = JSON.parse(JSON.stringify(enemyPool[Math.floor(Math.random() * enemyPool.length)]));
+    }
+
+    if (!randomBase) return; // Safety guard
+
+    // Balancing & Scaling
     const rand = Math.random();
     let levelDiff = 0;
     if (rand < 0.35) levelDiff = -1;
@@ -68,9 +99,8 @@ export const useBattle = () => {
     else levelDiff = 1;
 
     const enemyLevel = Math.max(1, myMonster.level + levelDiff);
-
-    // Scale Stats
     const scale = 1 + ((enemyLevel - 1) * 0.1);
+
     const newEnemy: Monster = {
       ...randomBase,
       level: enemyLevel,
@@ -82,28 +112,26 @@ export const useBattle = () => {
         spd: Math.floor(randomBase.stats.spd * scale),
         luk: Math.floor(randomBase.stats.luk * scale),
       },
-      vitals: { ...randomBase.vitals },
+      vitals: randomBase.vitals || { hunger: 100, mood: 100, energy: 100 },
       poopCount: 0
     };
 
     setEnemy(newEnemy);
-
     playerHpRef.current = myMonster.stats.hp;
     setPlayerHp(myMonster.stats.hp);
     playerGaugeRef.current = 0;
     setPlayerGauge(0);
-
     enemyHpRef.current = newEnemy.stats.maxHp;
     setEnemyHp(newEnemy.stats.maxHp);
     enemyGaugeRef.current = 0;
     setEnemyGauge(0);
-
     setLogs([]);
     setResult(null);
     setIsActive(true);
 
-    addLog(`⚔️ พบศัตรู: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
-  }, [myMonster, addLog, activeRouteId]);
+    const stepText = activeRouteId ? `(ด่าน ${explorationStep + 1}/5)` : '';
+    addLog(`⚔️ พบศัตรู${stepText}: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
+  }, [myMonster, addLog, activeRouteId, explorationStep]);
 
   const endBattle = useCallback((finalResult: 'win' | 'lose' | 'fled') => {
     setIsActive(false);
@@ -136,14 +164,8 @@ export const useBattle = () => {
     if (!isActive || !myMonster || !enemy) return;
 
     const interval = setInterval(() => {
-       if (playerHpRef.current <= 0) {
-         endBattle('lose');
-         return;
-       }
-       if (enemyHpRef.current <= 0) {
-         endBattle('win');
-         return;
-       }
+       if (playerHpRef.current <= 0) { endBattle('lose'); return; }
+       if (enemyHpRef.current <= 0) { endBattle('win'); return; }
 
        playerGaugeRef.current += (myMonster.stats.spd * 0.1);
        if (playerGaugeRef.current >= 100) {
@@ -162,28 +184,14 @@ export const useBattle = () => {
           setPlayerHp(playerHpRef.current);
           addLog(`${enemy.name} สวนกลับ! (-${dmg})`, 'text-orange-400');
        }
-
        setPlayerGauge(playerGaugeRef.current);
        setEnemyGauge(enemyGaugeRef.current);
-
     }, 100);
-
     return () => clearInterval(interval);
   }, [isActive, myMonster, enemy, endBattle, addLog]);
 
   return {
-    isActive,
-    result,
-    enemy,
-    playerHp,
-    enemyHp,
-    logs,
-    startBattle,
-    fleeBattle: () => endBattle('fled'),
-    resetBattle: () => {
-      setIsActive(false);
-      setResult(null);
-      setEnemy(null);
-    }
+    isActive, result, enemy, playerHp, enemyHp, logs, startBattle, fleeBattle: () => endBattle('fled'),
+    resetBattle: () => { setIsActive(false); setResult(null); setEnemy(null); }
   };
 };

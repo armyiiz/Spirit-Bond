@@ -1,3 +1,4 @@
+// ... (Imports & Interfaces อื่นๆ เหมือนเดิม: Stats, Vitals, Monster, Item, etc.)
 export type ElementType = 'Terra' | 'Aero' | 'Aqua' | 'Pyro' | 'Neutral';
 
 export interface Stats {
@@ -78,16 +79,22 @@ export interface GameState {
   sleepTimestamp: number | null;
   sleepSummary: SleepSummary | null;
 
+  // Exploration State
+  activeRouteId: string | null;
+  explorationStep: number; // [NEW] ตัวนับด่าน (0-4)
+
   // Actions
   startGame: (starterId: number) => void;
   tick: () => void;
   updateVitals: (delta: Partial<Vitals>) => void;
   addItem: (itemId: string, count: number) => void;
   useItem: (itemId: string) => void;
-  buyItem: (itemId: string) => void; // New Shop Action
+  buyItem: (itemId: string) => void;
+  craftItem: (itemId: string) => void;
+  evolveMonster: (targetSpeciesId: number, requiredItem: string) => void;
   trainMonster: () => { stat: string; value: number } | undefined;
   feedGeneric: () => void;
-  bathMonster: () => void; // New Bath Action
+  bathMonster: () => void;
   cleanPoop: () => void;
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
@@ -96,8 +103,11 @@ export interface GameState {
   clearSleepSummary: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;
-  activeRouteId: string | null;
+
+  // Exploration Actions
   setActiveRoute: (routeId: string | null) => void;
+  advanceExploration: () => void; // [NEW]
+  resetExploration: () => void;   // [NEW]
 }
 
 export interface LootTable {
