@@ -23,11 +23,6 @@ function App() {
   // Initialize Game Loop
   useGameLoop();
 
-  // On app load, check if we need to wake up
-  useEffect(() => {
-    useGameStore.getState().wakeUp();
-  }, []);
-
   // Handle Navigation Logic
   const handleModeChange = (mode: ConsoleMode) => {
     if (mode === 'battle') {
