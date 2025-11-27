@@ -4,7 +4,7 @@ import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
 import { ITEMS } from '../data/items'; // Import items for shop
 import { ROUTES } from '../data/routes';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle } from 'lucide-react'; // เพิ่ม icon
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle, Backpack, Home } from 'lucide-react'; // เพิ่ม icon
 
 export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings' | 'sleep_summary';
 
@@ -16,6 +16,10 @@ interface ActionConsoleProps {
     result: BattleResult;
     onFlee: () => void;
     onRestart: () => void;
+    pauseBattle: () => void;
+    resumeBattle: () => void;
+    healPlayer: (amount: number) => void;
+    isPaused: boolean;
   };
   onReturnToIdle: () => void;
   onModeChange: (mode: ConsoleMode, params?: any) => void;
@@ -249,11 +253,39 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                         <div className="flex-1">
                             <div className="font-bold text-slate-200 text-sm">{item.name}</div>
                             <div className="text-[10px] text-slate-400">{item.description}</div>
+                            {item.craftReq && (
+                                <div className="flex gap-2 mt-1 flex-wrap">
+                                    {item.craftReq.map((req, idx) => {
+                                        const hasItem = inventory.find(i => i.item.id === req.itemId);
+                                        const currentCount = hasItem ? hasItem.count : 0;
+                                        const reqItemDef = Object.values(ITEMS).find(i => i.id === req.itemId);
+
+                                        return (
+                                            <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded border ${currentCount >= req.count ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300' : 'bg-red-900/50 border-red-700 text-red-300'}`}>
+                                                {reqItemDef?.emoji} {currentCount}/{req.count}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <button
                             onClick={() => buyItem(item.id)}
-                            disabled={player.gold < (item.price || 0)}
-                            className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${player.gold >= (item.price || 0) ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                            disabled={
+                                player.gold < (item.price || 0) ||
+                                (item.craftReq && !item.craftReq.every(req => {
+                                    const invItem = inventory.find(i => i.item.id === req.itemId);
+                                    return invItem && invItem.count >= req.count;
+                                }))
+                            }
+                            className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${
+                                player.gold >= (item.price || 0) && (!item.craftReq || item.craftReq.every(req => {
+                                    const invItem = inventory.find(i => i.item.id === req.itemId);
+                                    return invItem && invItem.count >= req.count;
+                                }))
+                                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                            }`}
                         >
                             {item.price} G
                         </button>
@@ -340,7 +372,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   // --- BATTLE MODE (แก้ไขส่วน Result) ---
   if (mode === 'battle' && battleState) {
-    const { logs, isActive, result, onFlee, onRestart } = battleState;
+    const { logs, isActive, result, onFlee, onRestart, pauseBattle, resumeBattle, isPaused } = battleState;
 
     // Logic ปุ่มจบการต่อสู้
     const handleBattleEnd = () => {
@@ -355,8 +387,54 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
         }
     };
 
+    // Logic Retreat
+    const handleRetreat = () => {
+        resetExploration();
+        onReturnToIdle();
+    };
+
     return (
-      <div className="h-full flex flex-col bg-slate-900 border-t border-slate-700">
+      <div className="h-full flex flex-col bg-slate-900 border-t border-slate-700 relative">
+         {/* Battle Bag Overlay */}
+         {isPaused && (
+             <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-4">
+                 <div className="bg-slate-800 w-full max-w-sm rounded-xl border border-slate-600 p-4 shadow-2xl">
+                     <h3 className="text-amber-400 font-bold mb-3 flex items-center gap-2"><Backpack /> Battle Bag</h3>
+                     <div className="grid grid-cols-4 gap-2 mb-4">
+                        {inventory.filter(slot => slot.item.type === 'consumable' && (slot.item.effect?.hp || slot.item.effect?.hpPercent)).map((slot, idx) => (
+                             <button
+                                key={idx}
+                                onClick={() => {
+                                    const item = slot.item;
+                                    let healAmount = 0;
+                                    if (item.effect?.hp) healAmount += item.effect.hp;
+                                    if (item.effect?.hpPercent && myMonster) {
+                                        healAmount += Math.floor(myMonster.stats.maxHp * (item.effect.hpPercent / 100));
+                                    }
+
+                                    useItem(item.id);
+                                    battleState?.healPlayer(healAmount);
+                                    resumeBattle();
+                                }}
+                                className="aspect-square bg-slate-700 hover:bg-slate-600 rounded-lg flex flex-col items-center justify-center border border-slate-600"
+                             >
+                                 <div className="text-2xl">{slot.item.emoji}</div>
+                                 <div className="text-[10px] font-bold text-white">{slot.count}</div>
+                             </button>
+                        ))}
+                        {inventory.filter(slot => slot.item.type === 'consumable' && (slot.item.effect?.hp || slot.item.effect?.hpPercent)).length === 0 && (
+                            <div className="col-span-4 text-center text-slate-500 text-xs py-4">
+                                ไม่มีไอเทมฟื้นฟู
+                            </div>
+                        )}
+                     </div>
+                     <button onClick={resumeBattle} className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold">
+                         Close (Resume)
+                     </button>
+                 </div>
+             </div>
+         )}
+
          <div className="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-xs bg-black/20">
             {logs.length === 0 && <div className="text-slate-600 italic text-center mt-4">...Battle Starting...</div>}
             {logs.map(log => (
@@ -368,32 +446,54 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
             <div ref={logEndRef} />
          </div>
 
+         {/* Battle Controls */}
          <div className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
             {!isActive && result ? (
                canCloseBattle ? (
-                <button
-                    onClick={handleBattleEnd}
-                    className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg animate-in fade-in zoom-in duration-300 flex items-center justify-center gap-2 ${
-                    result === 'win' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-slate-700 text-white hover:bg-slate-600'
-                    }`}
-                >
-                    {result === 'win'
-                        ? (activeRouteId && explorationStep < 4 ? <><span>ลุยต่อ (ด่าน {explorationStep + 2}/5)</span> <ArrowRightCircle size={16}/></> : '✅ ภารกิจสำเร็จ! (กลับบ้าน)')
-                        : '💀 พ่ายแพ้... (กลับบ้าน)'}
-                </button>
+                <div className="flex-1 flex gap-2">
+                    {/* Retreat Button (Only on Win) */}
+                    {result === 'win' && (
+                        <button
+                            onClick={handleRetreat}
+                            className="px-4 bg-red-900/50 hover:bg-red-900/80 text-red-200 border border-red-900 rounded-lg font-bold flex flex-col items-center justify-center"
+                        >
+                            <Home size={16} />
+                            <span className="text-[10px]">Home</span>
+                        </button>
+                    )}
+
+                    <button
+                        onClick={handleBattleEnd}
+                        className={`flex-1 py-3 rounded-lg font-bold text-sm shadow-lg animate-in fade-in zoom-in duration-300 flex items-center justify-center gap-2 ${
+                        result === 'win' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-slate-700 text-white hover:bg-slate-600'
+                        }`}
+                    >
+                        {result === 'win'
+                            ? (activeRouteId && explorationStep < 4 ? <><span>ลุยต่อ (ด่าน {explorationStep + 2}/5)</span> <ArrowRightCircle size={16}/></> : '✅ ภารกิจสำเร็จ! (กลับบ้าน)')
+                            : '💀 พ่ายแพ้... (กลับบ้าน)'}
+                    </button>
+                </div>
                ) : (
                  <div className="flex-1 py-3 text-center text-slate-500 text-xs italic animate-pulse">
                     Processing results...
                  </div>
                )
             ) : (
-              <button
-                 data-testid="battle-flee-btn"
-                onClick={onFlee}
-                className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold text-sm border border-slate-600"
-              >
-                🏃 Run (หนี)
-              </button>
+              <>
+                  <button
+                      onClick={pauseBattle}
+                      className="px-4 bg-amber-900/50 hover:bg-amber-900/80 text-amber-200 border border-amber-900 rounded-lg flex items-center justify-center"
+                  >
+                      <Backpack size={20} />
+                  </button>
+                  <button
+                     data-testid="battle-flee-btn"
+                    onClick={onFlee}
+                    className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold text-sm border border-slate-600"
+                  >
+                    🏃 Run (หนี)
+                  </button>
+              </>
             )}
          </div>
       </div>

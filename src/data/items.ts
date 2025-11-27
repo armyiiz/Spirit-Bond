@@ -43,7 +43,8 @@ export const ITEMS: Record<string, Item> = {
     name: 'หินปฐพี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายดิน',
     emoji: '🪨',
-    price: 500
+    price: 500,
+    craftReq: [{ itemId: 'evo_shard_terra', count: 1 }, { itemId: 'evo_gem_terra', count: 1 }]
   },
   'stone_aero': {
     id: 'stone_aero',
@@ -51,7 +52,8 @@ export const ITEMS: Record<string, Item> = {
     name: 'หินวายุ',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายลม',
     emoji: '⚡',
-    price: 500
+    price: 500,
+    craftReq: [{ itemId: 'evo_feather_aero', count: 1 }, { itemId: 'evo_cloud_aero', count: 1 }]
   },
   'stone_aqua': {
     id: 'stone_aqua',
@@ -59,7 +61,8 @@ export const ITEMS: Record<string, Item> = {
     name: 'หินวารี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายน้ำ',
     emoji: '💧',
-    price: 500
+    price: 500,
+    craftReq: [{ itemId: 'evo_shell_aqua', count: 1 }, { itemId: 'evo_ice_aqua', count: 1 }]
   },
   'stone_pyro': {
     id: 'stone_pyro',
@@ -67,6 +70,7 @@ export const ITEMS: Record<string, Item> = {
     name: 'หินอัคคี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายไฟ',
     emoji: '🔥',
-    price: 500
+    price: 500,
+    craftReq: [{ itemId: 'evo_tail_pyro', count: 1 }, { itemId: 'evo_stinger_pyro', count: 1 }]
   }
 };
