@@ -44,30 +44,33 @@ export const useBattle = () => {
   }, []);
 
   const startBattle = useCallback((routeId?: string) => {
-    // ... (Logic เดิมข้างในปลอดภัยแล้ว) ...
-    // Copy โค้ดเดิมมาใส่ตรงนี้ได้เลยครับ (ส่วนที่ random enemy)
-    if (!myMonster) return;
-    let randomBase: Monster | null = null;
+    // ✅ Fetch fresh state directly to avoid stale closures
+    const state = useGameStore.getState();
+    const currentMonster = state.myMonster;
+    const currentStep = state.explorationStep;
 
     // Use passed routeId if available, otherwise fallback to store
-    const currentRouteId = routeId || activeRouteId;
+    const currentRouteId = routeId || state.activeRouteId;
 
-    // ... (Logic random enemy เดิม) ...
-    // ย่อเพื่อความกระชับ แต่ให้คง logic เดิมไว้นะครับ
+    if (!currentMonster) return;
+    let randomBase: Monster | null = null;
+
     if (currentRouteId) {
         const route = ROUTES.find(r => r.id === currentRouteId);
         if (route) {
             let enemyId: string | undefined;
 
             // ⚔️ Encounter Logic (Fixed Progression)
-            if (explorationStep < 3) {
+            if (currentStep < 3) {
                 // Steps 0-2: Minions (Indices 0, 1, 2)
                 const minions = route.enemies.slice(0, 3);
-                enemyId = minions[Math.floor(Math.random() * minions.length)];
-            } else if (explorationStep === 3) {
+                if (minions.length > 0) {
+                   enemyId = minions[Math.floor(Math.random() * minions.length)];
+                }
+            } else if (currentStep === 3) {
                 // Step 3: Mini-Boss (Index 3)
                 enemyId = route.enemies[3];
-            } else if (explorationStep >= 4) {
+            } else if (currentStep >= 4) {
                 // Step 4: Boss
                 enemyId = route.bossId;
             }
@@ -94,7 +97,7 @@ export const useBattle = () => {
     }
 
     if (!randomBase) {
-        const possibleEnemies = MONSTER_DB.filter(m => m.stage === myMonster?.stage);
+        const possibleEnemies = MONSTER_DB.filter(m => m.stage === currentMonster.stage);
         const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
         randomBase = JSON.parse(JSON.stringify(enemyPool[Math.floor(Math.random() * enemyPool.length)]));
     }
@@ -110,8 +113,8 @@ export const useBattle = () => {
       [minLevel, maxLevel] = ENEMIES[randomBase.id].levelRange;
     } else {
       // Fallback for random encounters not in route (should rarely happen)
-      minLevel = Math.max(1, (myMonster?.level || 1) - 1);
-      maxLevel = Math.max(1, (myMonster?.level || 1) + 1);
+      minLevel = Math.max(1, (currentMonster.level || 1) - 1);
+      maxLevel = Math.max(1, (currentMonster.level || 1) + 1);
     }
 
     const enemyLevel = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
@@ -133,8 +136,8 @@ export const useBattle = () => {
     };
 
     setEnemy(newEnemy);
-    playerHpRef.current = myMonster?.stats.hp || 0;
-    setPlayerHp(myMonster?.stats.hp || 0);
+    playerHpRef.current = currentMonster.stats.hp || 0;
+    setPlayerHp(currentMonster.stats.hp || 0);
     playerGaugeRef.current = 0;
     setPlayerGauge(0);
     enemyHpRef.current = newEnemy.stats.maxHp;
@@ -145,10 +148,10 @@ export const useBattle = () => {
     setResult(null);
     setIsActive(true);
 
-    const stepText = currentRouteId ? `(ด่าน ${explorationStep + 1}/5)` : '';
+    const stepText = currentRouteId ? `(ด่าน ${currentStep + 1}/5)` : '';
     addLog(`⚔️ พบศัตรู${stepText}: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
 
-  }, [myMonster, addLog, activeRouteId, explorationStep]); // Dependencies
+  }, [addLog]); // Dependencies reduced to stable addLog
 
   const endBattle = useCallback((finalResult: 'win' | 'lose' | 'fled') => {
      // ... (Logic เดิม) ...
