@@ -378,7 +378,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     const handleBattleEnd = () => {
         if (result === 'win' && activeRouteId && explorationStep < 4) {
             // ถ้าชนะ และยังไม่ถึงบอส (ด่าน < 5) -> ไปต่อ
-            advanceExploration();
             onRestart(); // เริ่มสู้ใหม่ (StartBattle จะถูกเรียกอีกรอบ)
         } else {
             // ถ้าแพ้ หรือ จบบอส -> กลับบ้าน
@@ -469,7 +468,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                         }`}
                     >
                         {result === 'win'
-                            ? (activeRouteId && explorationStep < 4 ? <><span>ลุยต่อ (ด่าน {explorationStep + 2}/5)</span> <ArrowRightCircle size={16}/></> : '✅ ภารกิจสำเร็จ! (กลับบ้าน)')
+                            ? (activeRouteId && explorationStep < 4 ? <><span>ลุยต่อ (ด่าน {explorationStep + 1}/5)</span> <ArrowRightCircle size={16}/></> : '✅ ภารกิจสำเร็จ! (กลับบ้าน)')
                             : '💀 พ่ายแพ้... (กลับบ้าน)'}
                     </button>
                 </div>
