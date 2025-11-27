@@ -42,16 +42,19 @@ export const useBattle = () => {
     setLogs(prev => [...prev.slice(-4), { id: Date.now(), text, color }]);
   }, []);
 
-  const startBattle = useCallback(() => {
+  const startBattle = useCallback((routeId?: string) => {
     // ... (Logic เดิมข้างในปลอดภัยแล้ว) ...
     // Copy โค้ดเดิมมาใส่ตรงนี้ได้เลยครับ (ส่วนที่ random enemy)
     if (!myMonster) return;
     let randomBase: Monster | null = null;
 
+    // Use passed routeId if available, otherwise fallback to store
+    const currentRouteId = routeId || activeRouteId;
+
     // ... (Logic random enemy เดิม) ...
     // ย่อเพื่อความกระชับ แต่ให้คง logic เดิมไว้นะครับ
-    if (activeRouteId) {
-        const route = ROUTES.find(r => r.id === activeRouteId);
+    if (currentRouteId) {
+        const route = ROUTES.find(r => r.id === currentRouteId);
         if (route) {
             let enemyId: string | undefined;
             if (explorationStep >= 4 && route.bossId) {
@@ -88,13 +91,20 @@ export const useBattle = () => {
 
     if (!randomBase) return;
 
-    // Balancing Logic (เหมือนเดิม)
-    const rand = Math.random();
-    let levelDiff = 0;
-    if (rand < 0.35) levelDiff = -1;
-    else if (rand < 0.95) levelDiff = 0;
-    else levelDiff = 1;
-    const enemyLevel = Math.max(1, (myMonster?.level || 1) + levelDiff);
+    // Balancing Logic (Updated to use absolute level range)
+    let minLevel = 1;
+    let maxLevel = 1;
+
+    if (currentRouteId && randomBase.id && ENEMIES[randomBase.id]) {
+      // Use defined absolute range from enemy data
+      [minLevel, maxLevel] = ENEMIES[randomBase.id].levelRange;
+    } else {
+      // Fallback for random encounters not in route (should rarely happen)
+      minLevel = Math.max(1, (myMonster?.level || 1) - 1);
+      maxLevel = Math.max(1, (myMonster?.level || 1) + 1);
+    }
+
+    const enemyLevel = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
     const scale = 1 + ((enemyLevel - 1) * 0.1);
 
     const newEnemy: Monster = {
@@ -125,7 +135,7 @@ export const useBattle = () => {
     setResult(null);
     setIsActive(true);
 
-    const stepText = activeRouteId ? `(ด่าน ${explorationStep + 1}/5)` : '';
+    const stepText = currentRouteId ? `(ด่าน ${explorationStep + 1}/5)` : '';
     addLog(`⚔️ พบศัตรู${stepText}: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
 
   }, [myMonster, addLog, activeRouteId, explorationStep]); // Dependencies

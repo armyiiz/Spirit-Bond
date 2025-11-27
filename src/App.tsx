@@ -10,7 +10,6 @@ import MonsterStage from './components/MonsterStage';
 import TopNavigation from './components/TopNavigation';
 import ActionConsole, { ConsoleMode } from './components/ActionConsole';
 import StatusStrip from './components/StatusStrip';
-import SleepSummaryModal from './components/SleepSummaryModal';
 
 function App() {
   const { myMonster } = useGameStore();
@@ -24,9 +23,11 @@ function App() {
   useGameLoop();
 
   // Handle Navigation Logic
-  const handleModeChange = (mode: ConsoleMode) => {
+  const handleModeChange = (mode: ConsoleMode, params?: any) => {
     if (mode === 'battle') {
-      battle.startBattle();
+      // If params has routeId, pass it to startBattle to fix "Ghost Route"
+      const routeId = params?.routeId;
+      battle.startBattle(routeId);
       setConsoleMode('battle');
     } else {
       // If switching away from battle, we might need to pause/stop?
@@ -58,9 +59,6 @@ function App() {
   // 3. Main Game Loop
   return (
     <div className="h-[100dvh] bg-slate-900 text-white flex flex-col relative max-w-md mx-auto shadow-2xl overflow-hidden">
-      {/* Overlays */}
-      <SleepSummaryModal />
-
       {/* Header (Player Info) */}
       <div className="flex-none z-20">
         <Header />

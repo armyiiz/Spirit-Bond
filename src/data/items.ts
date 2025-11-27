@@ -42,27 +42,31 @@ export const ITEMS: Record<string, Item> = {
     type: 'evo_material',
     name: 'หินปฐพี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายดิน',
-    emoji: '🪨'
+    emoji: '🪨',
+    price: 500
   },
   'stone_aero': {
     id: 'stone_aero',
     type: 'evo_material',
     name: 'หินวายุ',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายลม',
-    emoji: '⚡'
+    emoji: '⚡',
+    price: 500
   },
   'stone_aqua': {
     id: 'stone_aqua',
     type: 'evo_material',
     name: 'หินวารี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายน้ำ',
-    emoji: '💧'
+    emoji: '💧',
+    price: 500
   },
   'stone_pyro': {
     id: 'stone_pyro',
     type: 'evo_material',
     name: 'หินอัคคี',
     description: 'ใช้สำหรับวิวัฒนาการเป็นสายไฟ',
-    emoji: '🔥'
+    emoji: '🔥',
+    price: 500
   }
 };
