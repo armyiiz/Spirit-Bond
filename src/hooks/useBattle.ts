@@ -27,6 +27,7 @@ export const useBattle = () => {
   const [result, setResult] = useState<BattleResult>(null);
   const [enemy, setEnemy] = useState<Monster | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isPaused, setIsPaused] = useState(false); // [NEW] Pause State
 
   const playerHpRef = useRef(0);
   const enemyHpRef = useRef(0);
@@ -57,11 +58,20 @@ export const useBattle = () => {
         const route = ROUTES.find(r => r.id === currentRouteId);
         if (route) {
             let enemyId: string | undefined;
-            if (explorationStep >= 4 && route.bossId) {
+
+            // ⚔️ Encounter Logic (Fixed Progression)
+            if (explorationStep < 3) {
+                // Steps 0-2: Minions (Indices 0, 1, 2)
+                const minions = route.enemies.slice(0, 3);
+                enemyId = minions[Math.floor(Math.random() * minions.length)];
+            } else if (explorationStep === 3) {
+                // Step 3: Mini-Boss (Index 3)
+                enemyId = route.enemies[3];
+            } else if (explorationStep >= 4) {
+                // Step 4: Boss
                 enemyId = route.bossId;
-            } else {
-                enemyId = route.enemies[Math.floor(Math.random() * route.enemies.length)];
             }
+
             if (enemyId && ENEMIES[enemyId]) {
                  const enemyData = ENEMIES[enemyId];
                  // Fix crash prevention logic
@@ -167,6 +177,9 @@ export const useBattle = () => {
     if (!isActive || !myMonster || !enemy) return;
 
     const interval = setInterval(() => {
+       if (isPaused) return; // [NEW] Pause Check
+
+       // [NEW] Strict HP Checks (Race Condition Fix)
        if (playerHpRef.current <= 0) { endBattle('lose'); return; }
        if (enemyHpRef.current <= 0) { endBattle('win'); return; }
 
@@ -180,6 +193,9 @@ export const useBattle = () => {
           addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
        }
 
+       // Check enemy HP again before they attack
+       if (enemyHpRef.current <= 0) return;
+
        enemyGaugeRef.current += (enemy.stats.spd * 0.1);
        if (enemyGaugeRef.current >= 100) {
           enemyGaugeRef.current = 0;
@@ -192,10 +208,20 @@ export const useBattle = () => {
        setEnemyGauge(enemyGaugeRef.current);
     }, 100);
     return () => clearInterval(interval);
-  }, [isActive, myMonster, enemy, endBattle, addLog]);
+  }, [isActive, myMonster, enemy, endBattle, addLog, isPaused]);
 
   return {
-    isActive, result, enemy, playerHp, enemyHp, logs, startBattle, fleeBattle: () => endBattle('fled'),
-    resetBattle: () => { setIsActive(false); setResult(null); setEnemy(null); }
+    isActive, result, enemy, playerHp, enemyHp, logs, startBattle,
+    fleeBattle: () => endBattle('fled'),
+    resetBattle: () => { setIsActive(false); setResult(null); setEnemy(null); },
+    pauseBattle: () => setIsPaused(true),
+    resumeBattle: () => setIsPaused(false),
+    healPlayer: (amount: number) => {
+        if (!myMonster) return;
+        playerHpRef.current = Math.min(myMonster.stats.maxHp, playerHpRef.current + amount);
+        setPlayerHp(playerHpRef.current);
+        addLog(`❤️ ฟื้นฟู ${amount} HP`, 'text-pink-400');
+    },
+    isPaused
   };
 };

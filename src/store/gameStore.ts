@@ -125,10 +125,47 @@ export const useGameStore = create<GameState>()(
          const state = get();
          const item = ITEMS[itemId];
          if (!item || !item.price) return;
-         if (state.player.gold >= item.price) {
-            set({ player: { ...state.player, gold: state.player.gold - item.price } });
-            state.addItem(itemId, 1);
+
+         // Check Gold
+         if (state.player.gold < item.price) return;
+
+         // Check Materials
+         if (item.craftReq) {
+            for (const req of item.craftReq) {
+               const invItem = state.inventory.find(i => i.item.id === req.itemId);
+               if (!invItem || invItem.count < req.count) return;
+            }
          }
+
+         // Deduct Materials
+         let newInventory = [...state.inventory];
+         if (item.craftReq) {
+            item.craftReq.forEach(req => {
+               const idx = newInventory.findIndex(i => i.item.id === req.itemId);
+               if (idx >= 0) {
+                  newInventory[idx].count -= req.count;
+                  if (newInventory[idx].count <= 0) {
+                     newInventory.splice(idx, 1);
+                  }
+               }
+            });
+         }
+
+         // Deduct Gold and Add Item
+         set({
+             player: { ...state.player, gold: state.player.gold - item.price },
+             inventory: newInventory
+         });
+
+         // Use existing addItem logic but we already mutated inventory, so we just push the new item
+         // Actually, state.addItem() reads get().inventory, so we should call it after setting inventory,
+         // OR just handle the addition manually here to be atomic.
+         // Let's do it manually to ensure atomicity with material deduction.
+         const existingIndex = newInventory.findIndex(i => i.item.id === itemId);
+         if (existingIndex >= 0) newInventory[existingIndex].count += 1;
+         else newInventory.push({ item, count: 1 });
+
+         set({ inventory: newInventory });
       },
       useItem: (itemId) => {
         const state = get();

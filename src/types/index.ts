@@ -51,6 +51,7 @@ export interface Item {
   effect?: ItemEffect;
   emoji: string;
   price?: number; // For Shop
+  craftReq?: { itemId: string; count: number }[]; // For Crafting/Trading
 }
 
 export interface InventoryItem {
