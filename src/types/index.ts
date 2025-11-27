@@ -99,7 +99,7 @@ export interface GameState {
   gainRewards: (exp: number, gold: number, remainingHp?: number) => void;
   setLastSaveTime: (time: number) => void;
   toggleSleep: () => void;
-  wakeUp: () => void;
+  wakeUp: () => { duration: number, hpGained: number, energyGained: number } | null;
   clearSleepSummary: () => void;
   resetSave: () => void;
   setMyMonster: (monster: Monster) => void;

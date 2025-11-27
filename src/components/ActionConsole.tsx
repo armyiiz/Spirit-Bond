@@ -6,7 +6,7 @@ import { ITEMS } from '../data/items'; // Import items for shop
 import { ROUTES } from '../data/routes';
 import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle } from 'lucide-react'; // เพิ่ม icon
 
-export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings';
+export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings' | 'sleep_summary';
 
 interface ActionConsoleProps {
   mode: ConsoleMode;
@@ -18,16 +18,18 @@ interface ActionConsoleProps {
     onRestart: () => void;
   };
   onReturnToIdle: () => void;
-  onModeChange: (mode: ConsoleMode) => void;
+  onModeChange: (mode: ConsoleMode, params?: any) => void;
 }
 
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle, onModeChange }) => {
   const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster,
-          activeRouteId, explorationStep, advanceExploration, resetExploration // [NEW] ดึง state มาใช้
+          activeRouteId, explorationStep, advanceExploration, resetExploration,
+          wakeUp // Use wakeUp directly
         } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
+  const [sleepReport, setSleepReport] = useState<{ duration: number, hpGained: number, energyGained: number } | null>(null);
 
   const scrollToBottom = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,14 +61,25 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
      if (result) setTrainingResult(result);
   };
 
+  const handleWakeUp = () => {
+    const report = wakeUp();
+    if (report) {
+      setSleepReport(report);
+      onModeChange('sleep_summary');
+    } else {
+      // Fallback if wakeUp returns null (shouldn't happen if sleeping)
+      toggleSleep();
+    }
+  };
+
   // SLEEP OVERLAY (Modified: Bypass for 'shop' and 'settings')
-  if (isSleeping && mode !== 'settings' && mode !== 'shop') {
+  if (isSleeping && mode !== 'settings' && mode !== 'shop' && mode !== 'sleep_summary') {
      return (
        <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
           <Moon size={48} className="text-blue-200 mb-4" />
           <h2 className="text-xl text-blue-100 font-bold">กำลังนอนพัก...</h2>
           <p className="text-xs text-slate-400 mt-2">HP และพลังงานกำลังฟื้นฟู</p>
-          <button onClick={toggleSleep} className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-full border border-slate-600 hover:bg-slate-700">
+          <button onClick={handleWakeUp} className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-full border border-slate-600 hover:bg-slate-700">
              <Sun size={16} className="inline mr-2"/> ตื่นนอน
           </button>
        </div>
@@ -74,6 +87,37 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   }
 
   // --- Render Views ---
+
+  if (mode === 'sleep_summary' && sleepReport) {
+      const hours = Math.floor(sleepReport.duration / 3600);
+      const minutes = Math.floor((sleepReport.duration % 3600) / 60);
+
+      return (
+        <div className="h-full bg-slate-900 p-4 flex flex-col items-center justify-center space-y-4">
+             <h3 className="text-xl font-bold text-blue-300 flex items-center gap-2"><Sun /> อรุณสวัสดิ์!</h3>
+             <div className="bg-slate-800 p-4 rounded-xl w-full max-w-xs space-y-2 border border-slate-700">
+                <div className="flex justify-between text-slate-300">
+                    <span>💤 เวลาที่นอน:</span>
+                    <span className="font-mono font-bold text-white">{hours} ชม. {minutes} นาที</span>
+                </div>
+                <div className="flex justify-between text-emerald-400">
+                    <span>❤️ HP ที่ฟื้นฟู:</span>
+                    <span className="font-mono font-bold">+{sleepReport.hpGained}</span>
+                </div>
+                 <div className="flex justify-between text-yellow-400">
+                    <span>⚡ Energy ที่ฟื้นฟู:</span>
+                    <span className="font-mono font-bold">+{sleepReport.energyGained}</span>
+                </div>
+             </div>
+             <button
+                onClick={onReturnToIdle}
+                className="w-full max-w-xs py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg"
+             >
+                ตกลง (OK)
+             </button>
+        </div>
+      );
+  }
 
   if (mode === 'idle') {
     if (!myMonster) return null;
@@ -384,7 +428,8 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
     const handleSelectRoute = (routeId: string) => {
       setActiveRoute(routeId);
-      onModeChange('battle');
+      // Pass the routeId as a parameter to ensure the battle starts with this specific route immediately
+      onModeChange('battle', { routeId });
     };
 
     return (

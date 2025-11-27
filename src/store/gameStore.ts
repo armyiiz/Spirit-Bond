@@ -45,6 +45,8 @@ export const useGameStore = create<GameState>()(
         if (!state.isSleeping) {
           set({ isSleeping: true, sleepTimestamp: Date.now() });
         } else {
+           // Direct wake up call is now handled by UI to get return value
+           // But if called without checking return, we assume standard wake up.
           state.wakeUp();
         }
       },
@@ -62,12 +64,20 @@ export const useGameStore = create<GameState>()(
           const energyGained = Math.floor(secondsAsleep * energyRecoveryRate);
           const newHp = Math.min(maxHp, myMonster.stats.hp + hpGained);
           const newEnergy = Math.min(maxEnergy, myMonster.vitals.energy + energyGained);
+
+          const actualHpGained = newHp - myMonster.stats.hp;
+          const actualEnergyGained = newEnergy - myMonster.vitals.energy;
+
           set({
             myMonster: { ...myMonster, stats: { ...myMonster.stats, hp: newHp }, vitals: { ...myMonster.vitals, energy: newEnergy } },
-            isSleeping: false, sleepTimestamp: null,
-            sleepSummary: { duration: secondsAsleep, hpGained: newHp - myMonster.stats.hp, energyGained: newEnergy - myMonster.vitals.energy },
+            isSleeping: false,
+            sleepTimestamp: null,
+            sleepSummary: null // Clear old summary if any
           });
+
+          return { duration: secondsAsleep, hpGained: actualHpGained, energyGained: actualEnergyGained };
         }
+        return null;
       },
       clearSleepSummary: () => set({ sleepSummary: null }),
       tick: () => {
