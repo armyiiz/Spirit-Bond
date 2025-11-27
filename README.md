@@ -1,10 +1,10 @@
 # Spirit Bond
 
-## เกี่ยวกับโปรเจกต์
+## เกี่ยวกับโปรเจกต์ (About Project)
 
-Spirit Bond เป็นเกมมือถือแนว Monster Raising & Idle RPG ที่สร้างขึ้นด้วย Vite, React, TypeScript, Tailwind CSS, และ Zustand ผู้เล่นจะได้รับบทบาทเป็นผู้เลี้ยงมอนสเตอร์ มีหน้าที่ดูแลให้อาหาร ฝึกฝน และต่อสู้ไปพร้อมกับคู่หูของเรา
+**Spirit Bond** เป็นเว็บแอปพลิเคชันเกมแนว **Monster Raising & Idle RPG** ที่ออกแบบมาสำหรับมือถือ (Mobile-first) พัฒนาโดยใช้เทคโนโลยีสมัยใหม่เน้นความลื่นไหลและประสิทธิภาพ ผู้เล่นจะได้รับบทบาทเป็นผู้เลี้ยงมอนสเตอร์ที่ต้องดูแลคู่หู ฝึกฝน ออกสำรวจ และต่อสู้ในดันเจี้ยนต่างๆ เพื่อรวบรวมวัตถุดิบและพัฒนาร่าง
 
-## การติดตั้งและเริ่มใช้งาน
+## การติดตั้งและเริ่มใช้งาน (Getting Started)
 
 1.  **ติดตั้ง Dependencies:**
     ```bash
@@ -14,42 +14,78 @@ Spirit Bond เป็นเกมมือถือแนว Monster Raising & I
     ```bash
     npm run dev
     ```
-    จากนั้นเปิดเบราว์เซอร์ไปที่ `http://localhost:5173`
+    เปิดเบราว์เซอร์ไปที่ `http://localhost:5173`
+3.  **รัน Unit Tests:**
+    ```bash
+    npm test
+    ```
+    *หมายเหตุ: อาจมีคำเตือนเกี่ยวกับ `localStorage` จาก Vitest ซึ่งสามารถเพิกเฉยได้หากการทดสอบผ่าน*
+4.  **สร้าง Production Build:**
+    ```bash
+    npm run build
+    ```
+    คำสั่งนี้จะทำการตรวจสอบ TypeScript (`tsc`) และ Build ไฟล์ด้วย Vite
 
-## ระบบหลักของเกม
+## ระบบหลักของเกม (Core Game Mechanics)
 
-### ระบบการต่อสู้ (Battle System)
+### 1. ระบบการต่อสู้ (Battle System)
+-   **Auto-battler:** การต่อสู้เป็นแบบอัตโนมัติ ควบคุมด้วยระบบ **Action Gauge** แบบ Real-time ตามค่า Speed ของมอนสเตอร์
+-   **ธาตุ (Elemental System):** ระบบแพ้ชนะธาตุเป็นวงกลม:
+    -   **Terra (ดิน)** > Aero (ลม)
+    -   **Aero (ลม)** > Aqua (น้ำ)
+    -   **Aqua (น้ำ)** > Pyro (ไฟ)
+    -   **Pyro (ไฟ)** > Terra (ดิน)
+-   **การใช้ไอเทม:** สามารถกดหยุดเกมชั่วคราว (`isPaused`) เพื่อเปิดกระเป๋า (Battle Bag) และใช้ไอเทมฟื้นฟูได้
+    -   ไอเทมฟื้นฟูรองรับทั้งแบบค่าคงที่ (`hp`) และเปอร์เซ็นต์ (`hpPercent`)
+-   **ความพ่ายแพ้:** หาก HP หมด มอนสเตอร์จะไม่ตายแต่ HP จะเหลือ 1 (Critical State) และถูกส่งกลับหน้าหลัก
+-   **การหนี (Retreat):** ผู้เล่นสามารถเลือกหนีจากหน้าสรุปผลชนะเพื่อรีเซ็ตความก้าวหน้าในด่านนั้นได้
 
--   **รูปแบบ:** เป็นระบบ Auto-battler ที่การโจมตีจะเกิดขึ้นโดยอัตโนมัติ
--   **Action Gauge:** ความเร็วในการโจมตีของมอนสเตอร์จะขึ้นอยู่กับค่า Speed ซึ่งจะส่งผลต่อการเพิ่มขึ้นของ Action Gauge เมื่อเกจเต็ม มอนสเตอร์จะทำการโจมตี
--   **ระบบธาตุ:** มีการแพ้ทางของธาตุซึ่งส่งผลต่อความเสียหาย:
-    -   ดิน (Terra) > ลม (Aero)
-    -   ลม (Aero) > น้ำ (Aqua)
-    -   น้ำ (Aqua) > ไฟ (Pyro)
-    -   ไฟ (Pyro) > ดิน (Terra)
+### 2. การสำรวจและดรอปไอเทม (Exploration & Drops)
+-   **โครงสร้างด่าน:** มีทั้งหมด 8 เส้นทาง (Routes) แบ่งตามธีมธาตุ
+-   **ระบบ Encounter:** การเจอศัตรูจะอิงตาม `explorationStep`:
+    -   Step 0-2: มอนสเตอร์ทั่วไป (Common Mobs) - ดรอปอาหาร (Meat, Apple)
+    -   Step 3: มินิบอส (Mini Boss) - ดรอปยา (Potions)
+    -   Step 4: บอสประจำด่าน (Route Boss) - ดรอปวัสดุวิวัฒนาการ (Evo Materials) และมีโอกาส 1% ดรอปหินธาตุหายาก (Elemental Stones)
 
-### ระบบการดูแล (Care System)
+### 3. ระบบการดูแล (Care System)
+-   **Vitals:**
+    -   **HP:** พลังชีวิต
+    -   **Hunger:** ความหิว เพิ่มขึ้นตามเวลา ต้องให้อาหาร
+    -   **Mood:** อารมณ์ ลดลงหากมีอึ (Poop) กองอยู่ หรือหิว
+    -   **Energy:** ใช้ทำกิจกรรม (Train/Bath) ฟื้นฟูอัตโนมัติ
+-   **Game Loop:** `tick` จะทำงานทุก 10 วินาที เพื่อคำนวณ Passive Regeneration และสุ่มเหตุการณ์ขับถ่าย (Poop chance 0.5%)
+-   **การขับถ่าย (Poop):** เกิดขึ้นได้เฉพาะตอนตื่น หากปล่อยทิ้งไว้จะลด Mood -0.5 ต่อ Tick ต่อก้อน
+-   **การนอนหลับ (Sleep & Offline Progress):**
+    -   คำนวณความก้าวหน้าขณะออฟไลน์ (Offline Progression) โดยเทียบเวลา `Date.now()` กับเวลาเซฟล่าสุด
+    -   HP และ Energy จะฟื้นฟูเต็ม 100% ภายใน 2 ชั่วโมงจริง (Real-time)
 
-ผู้เล่นต้องดูแลมอนสเตอร์ผ่านค่าสถานะต่างๆ:
+### 4. ร้านค้าและวิวัฒนาการ (Shop & Evolution)
+-   **ร้านค้า:** รองรับการซื้อไอเทมและการคราฟต์ (Crafting) โดยเช็ค `craftReq` สำหรับไอเทมพิเศษ
+-   **วิวัฒนาการ:** เมื่อมอนสเตอร์เข้าเงื่อนไข จะเปลี่ยนร่างโดย:
+    -   เขียนทับ Stats, Name, Element, Stage, Appearance
+    -   คงเหลือ Level และ EXP ไว้เท่าเดิม
+    -   เชื่อมโยงสายวิวัฒนาการผ่าน `parentSpeciesId`
 
--   **HP (Health Points):** พลังชีวิตของมอนสเตอร์ จะลดลงเมื่อต่อสู้แพ้
--   **Hunger:** ความหิว จะเพิ่มขึ้นเมื่อเวลาผ่านไป สามารถลดได้โดยการให้อาหาร
--   **Mood:** อารมณ์ของมอนสเตอร์ จะส่งผลต่อความสามารถในการต่อสู้ สามารถเพิ่มได้โดยการเล่นด้วยหรืออาบน้ำ
--   **Energy:** พลังงานที่ใช้ในการทำกิจกรรมต่างๆ เช่น การฝึกฝน (Train) หรือการอาบน้ำ (Bath)
--   **Poop:** มอนสเตอร์จะขับถ่ายแบบสุ่มเมื่อเวลาผ่านไป การปล่อยทิ้งไว้จะทำให้อารมณ์ (Mood) ลดลง
+## คู่มือสำหรับนักพัฒนา (Technical Architecture & Developer Guidelines)
 
-### ระบบวิวัฒนาการ (Evolution)
+### Tech Stack
+-   **Core:** React, TypeScript, Vite
+-   **Styling:** Tailwind CSS v3 (Config ต้องใช้ `.cjs`), Framer Motion
+-   **State Management:** Zustand (พร้อม Middleware `persist` ลง `localStorage`)
 
-เมื่อมอนสเตอร์มีเลเวลถึงเงื่อนไขที่กำหนดและมีไอเทมที่จำเป็น ผู้เล่นจะสามารถพัฒนาร่างมอนสเตอร์ไปสู่ขั้นต่อไปได้ ซึ่งจะทำให้ค่าสถานะพื้นฐานเพิ่มขึ้นและอาจมีการเปลี่ยนแปลงธาตุ
+### โครงสร้างและการจัดการ State (State Management)
+-   **Data Persistence:** ข้อมูลทั้งหมดเก็บใน `localStorage` ฝั่ง Client เท่านั้น (ไม่มี Backend)
+-   **Atomic Selectors:** การเรียกใช้ Store ต้องใช้ Selector แบบ Atomic (เช่น `useStore(state => state.prop)`) เพื่อป้องกัน Infinite Re-render
+-   **Action Console:** UI การเล่นทั้งหมด (Bag, Care, Battle, Shop) จะแสดงผลในคอมโพเนนต์ `ActionConsole` ผ่านการสลับ Mode
+-   **MonsterStage:** เป็น Presentational Component เท่านั้น รับ Props มาแสดงผล ห้ามมี Logic คำนวณ State ภายใน
 
-## เทคโนโลยีที่ใช้
-
--   Vite
--   React
--   TypeScript
--   Zustand (สำหรับ State Management)
--   Tailwind CSS (สำหรับ Styling)
--   Framer Motion (สำหรับ Animation)
+### ข้อควรระวังในการเขียนโค้ด (Coding Standards)
+1.  **Type Safety:** ข้อมูล `Enemy` จากไฟล์ Data ต้องถูก Map เข้าสู่ Type `Monster` อย่างปลอดภัยก่อนนำไปใช้เสมอ (ใส่ Default values ให้ครบ)
+2.  **Hooks Logic:** `useBattle` ใช้ `useRef` สำหรับค่าที่เปลี่ยนแปลงเร็ว (HP, Gauge) เพื่อประสิทธิภาพ และใช้ `useState` เฉพาะตอนต้องการ Re-render UI
+3.  **Language:**
+    -   **UI/Logs:** ภาษาไทย
+    -   **Code/Variables/Comments:** ภาษาอังกฤษ
+4.  **Strict Build:** โปรเจกต์ตั้งค่า TypeScript ไว้เข้มงวด ห้ามมี Unused Variables/Imports (ต้องผ่าน `tsc` ก่อน Commit)
 
 ## ประวัติการเปลี่ยนแปลง (Changelog)
 
@@ -57,6 +93,7 @@ Spirit Bond เป็นเกมมือถือแนว Monster Raising & I
 
 ## แผนในอนาคต (Roadmap)
 
--   [ ] นำรูปภาพมอนสเตอร์ที่วาดขึ้นมาใช้แทนที่ Emoji ที่ใช้อยู่ในปัจจุบัน
--   [ ] เพิ่มระบบเสียงและดนตรีประกอบ
--   [ ] เพิ่มเนื้อเรื่องและเควส
+-   [ ] นำรูปภาพมอนสเตอร์ที่วาดขึ้นมาใช้แทนที่ Emoji
+-   [ ] เพิ่มระบบเสียงและดนตรีประกอบ (BGM/SFX)
+-   [ ] เพิ่มเนื้อเรื่องและเควส (Story & Quests)
+-   [ ] ปรับปรุง Animation การโจมตีและ Effect
