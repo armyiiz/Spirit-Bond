@@ -28,6 +28,7 @@ export interface Monster {
   stats: Stats;
   vitals: Vitals;
   poopCount?: number;
+  drops?: { itemId: string; chance: number }[];
   appearance: {
     emoji: string;
     color: string;

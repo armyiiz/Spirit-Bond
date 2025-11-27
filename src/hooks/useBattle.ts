@@ -136,7 +136,8 @@ export const useBattle = () => {
         luk: Math.floor(randomBase.stats.luk * scale),
       },
       vitals: randomBase.vitals || { hunger: 100, mood: 100, energy: 100 },
-      poopCount: 0
+      poopCount: 0,
+      drops: randomBase.drops // Ensure drops are carried over
     };
 
     setEnemy(newEnemy);
