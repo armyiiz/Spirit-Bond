@@ -34,7 +34,7 @@ export interface Monster {
   };
 }
 
-export type ItemType = 'consumable' | 'evo_material';
+export type ItemType = 'consumable' | 'evo_material' | 'material';
 
 export interface ItemEffect {
   hunger?: number;
