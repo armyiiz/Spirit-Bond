@@ -82,7 +82,7 @@ export const ITEMS: Record<string, Item> = {
     description: 'ดาบฝึกหัดทำจากไม้เนื้อแข็ง',
     emoji: '⚔️',
     stats: { atk: 5 },
-    price: 100
+    price: 15 // Spirit Tokens
   },
   'equip_copper_ring': {
     id: 'equip_copper_ring',
@@ -91,7 +91,7 @@ export const ITEMS: Record<string, Item> = {
     description: 'แหวนราคาถูกแต่ช่วยให้แข็งแรงขึ้น',
     emoji: '🛡️',
     stats: { maxHp: 20 },
-    price: 100
+    price: 15 // Spirit Tokens
   },
 
   // --- Boss Drops (Materials: Terra) ---

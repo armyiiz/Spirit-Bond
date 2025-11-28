@@ -135,8 +135,14 @@ export const useGameStore = create<GameState>()(
          const item = ITEMS[itemId];
          if (!item || !item.price) return;
 
-         if (state.player.gold < item.price) return;
+         // Check Currency
+         if (item.type === 'equipment') {
+            if (state.spiritTokens < item.price) return;
+         } else {
+            if (state.player.gold < item.price) return;
+         }
 
+         // Check Crafting Req
          if (item.craftReq) {
             for (const req of item.craftReq) {
                const invItem = state.inventory.find(i => i.item.id === req.itemId);
@@ -145,6 +151,7 @@ export const useGameStore = create<GameState>()(
          }
 
          let newInventory = [...state.inventory];
+         // Deduct Crafting Materials
          if (item.craftReq) {
             item.craftReq.forEach(req => {
                const idx = newInventory.findIndex(i => i.item.id === req.itemId);
@@ -157,16 +164,23 @@ export const useGameStore = create<GameState>()(
             });
          }
 
-         set({
-             player: { ...state.player, gold: state.player.gold - item.price },
-             inventory: newInventory
-         });
-
+         // Add Item
          const existingIndex = newInventory.findIndex(i => i.item.id === itemId);
          if (existingIndex >= 0) newInventory[existingIndex].count += 1;
          else newInventory.push({ item, count: 1 });
 
-         set({ inventory: newInventory });
+         // Atomic Update
+         if (item.type === 'equipment') {
+             set({
+                 spiritTokens: state.spiritTokens - item.price,
+                 inventory: newInventory
+             });
+         } else {
+             set({
+                 player: { ...state.player, gold: state.player.gold - item.price },
+                 inventory: newInventory
+             });
+         }
       },
       useItem: (itemId) => {
         const state = get();
