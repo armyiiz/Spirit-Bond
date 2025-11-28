@@ -37,6 +37,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   const [canCloseBattle, setCanCloseBattle] = useState(false);
   const [sleepReport, setSleepReport] = useState<{ duration: number, hpGained: number, energyGained: number } | null>(null);
   const [shopTab, setShopTab] = useState<'consumable' | 'evo' | 'equip'>('consumable');
+  const [bagTab, setBagTab] = useState<'consumable' | 'evo' | 'equip'>('consumable');
 
   const scrollToBottom = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -427,20 +428,75 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   // --- BAG MODE ---
   if (mode === 'bag') {
+    // Filter Inventory Logic
+    const filteredInventory = inventory.filter(slot => {
+        if (bagTab === 'consumable') return slot.item.type === 'consumable';
+        if (bagTab === 'evo') return slot.item.type === 'evo_material' || slot.item.type === 'material';
+        if (bagTab === 'equip') return slot.item.type === 'equipment';
+        return false;
+    });
+
     return (
-      <div className="h-full bg-slate-900 p-4 flex flex-col">
-         <div className="flex justify-between items-center mb-4">
-           <h3 className="font-bold text-amber-400">🎒 กระเป๋า</h3>
+      <div className="h-full bg-slate-900 p-4 flex flex-col gap-3">
+         <div className="flex justify-between items-center">
+           <h3 className="font-bold text-amber-400 flex items-center gap-2"><Backpack size={20}/> กระเป๋า</h3>
            <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
          </div>
+
+         {/* Bag Tabs */}
+         <div className="flex gap-1 p-1 bg-slate-950 rounded-lg">
+            {[
+                { id: 'consumable', label: '🍎 ใช้งาน' },
+                { id: 'evo', label: '💎 วัสดุ' },
+                { id: 'equip', label: '⚔️ สวมใส่' }
+            ].map(tab => (
+                <button
+                    key={tab.id}
+                    onClick={() => setBagTab(tab.id as any)}
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
+                        bagTab === tab.id ? 'bg-amber-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                >
+                    {tab.label}
+                </button>
+            ))}
+         </div>
+
          <div className="flex-1 overflow-y-auto grid grid-cols-4 gap-2 content-start">
-            {inventory.map((slot, idx) => (
-              <button key={idx} onClick={() => useItem(slot.item.id)} className="aspect-square bg-slate-800 border border-slate-700 rounded-lg flex flex-col items-center justify-center hover:border-amber-400 relative">
+            {filteredInventory.map((slot, idx) => (
+              <button
+                key={idx}
+                // Only allow click action for Consumables
+                onClick={() => {
+                    if (bagTab === 'consumable') useItem(slot.item.id);
+                    if (bagTab === 'equip') onModeChange('equipment'); // Shortcut to equipment page
+                }}
+                className={`aspect-square bg-slate-800 border border-slate-700 rounded-lg flex flex-col items-center justify-center relative group ${
+                    bagTab === 'consumable' ? 'hover:border-amber-400 active:scale-95' : ''
+                }`}
+              >
                  <div className="text-2xl">{slot.item.emoji}</div>
-                 <div className="absolute bottom-0 right-1 text-[10px] font-bold">{slot.count}</div>
+                 <div className="absolute bottom-0 right-1 text-[10px] font-bold text-white shadow-black drop-shadow-md">x{slot.count}</div>
+
+                 {/* Tooltip on Hover (Simple CSS logic requires Tooltip component, but let's use Title for now) */}
+                 <div className="hidden group-hover:block absolute bottom-full mb-1 bg-black text-white text-[10px] p-1 rounded whitespace-nowrap z-10">
+                    {slot.item.name}
+                 </div>
               </button>
             ))}
-            {inventory.length === 0 && <div className="col-span-4 text-center text-slate-600 text-xs mt-4">กระเป๋าว่างเปล่า</div>}
+
+            {filteredInventory.length === 0 && (
+                <div className="col-span-4 text-center text-slate-600 text-xs mt-10">
+                    ไม่มีไอเทมในหมวดนี้
+                </div>
+            )}
+         </div>
+
+         {/* Hint Text */}
+         <div className="text-center text-[10px] text-slate-500">
+             {bagTab === 'consumable' && "แตะเพื่อใช้งาน"}
+             {bagTab === 'evo' && "ใช้วิวัฒนาการในเมนู Evo"}
+             {bagTab === 'equip' && "จัดการในเมนู Equipment"}
          </div>
       </div>
     );
@@ -450,8 +506,8 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   if (mode === 'shop') {
     const shopItems = Object.values(ITEMS).filter(item => {
         if (!item.price) return false;
-        if (shopTab === 'consumable') return item.type === 'consumable' || item.type === 'material';
-        if (shopTab === 'evo') return item.type === 'evo_material';
+        if (shopTab === 'consumable') return item.type === 'consumable';
+        if (shopTab === 'evo') return item.type === 'evo_material' || item.type === 'material';
         if (shopTab === 'equip') return item.type === 'equipment';
         return false;
     });
@@ -491,11 +547,11 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
             <div className="flex-1 overflow-y-auto space-y-2">
                 {shopItems.map(item => {
                     const price = item.price || 0;
-                    const isEquip = item.type === 'equipment';
-                    const canAfford = isEquip ? spiritTokens >= price : player.gold >= price;
-                    const currencyLabel = isEquip ? 'T' : 'G';
-                    const currencyColor = isEquip ? 'text-purple-400' : 'text-yellow-400';
-                    const btnColor = isEquip ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500';
+                    const isTokenItem = item.type === 'equipment' || item.type === 'material';
+                    const canAfford = isTokenItem ? spiritTokens >= price : player.gold >= price;
+                    const currencyLabel = isTokenItem ? 'T' : 'G';
+                    const currencyColor = isTokenItem ? 'text-purple-400' : 'text-yellow-400';
+                    const btnColor = isTokenItem ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500';
 
                     // Check Craft Req
                     const canCraft = !item.craftReq || item.craftReq.every(req => {

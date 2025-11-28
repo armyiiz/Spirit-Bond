@@ -109,7 +109,7 @@ export const ITEMS: Record<string, Item> = {
     name: 'ผลึกแก้วกัดกิน',
     description: 'ชิ้นส่วนจากหนอนคริสตัล ใช้สร้าง Terra Stone',
     emoji: '🐛',
-    price: 150
+    price: 100
   },
 
   // --- Boss Drops (Materials: Aero) ---
@@ -127,7 +127,7 @@ export const ITEMS: Record<string, Item> = {
     name: 'ก้อนเมฆต้องสาป',
     description: 'ไอหมอกจากภูตเมฆา ใช้สร้าง Aero Stone',
     emoji: '☁️',
-    price: 150
+    price: 100
   },
 
   // --- Boss Drops (Materials: Aqua) ---
@@ -145,7 +145,7 @@ export const ITEMS: Record<string, Item> = {
     name: 'เกล็ดน้ำแข็งยักษ์',
     description: 'ชิ้นส่วนเย็นยะเยือกจากปูน้ำแข็ง ใช้สร้าง Aqua Stone',
     emoji: '🧊',
-    price: 150
+    price: 100
   },
 
   // --- Boss Drops (Materials: Pyro) ---
@@ -163,6 +163,6 @@ export const ITEMS: Record<string, Item> = {
     name: 'เหล็กในราชาแมงป่อง',
     description: 'พิษร้ายแรงที่ถูกสกัดออก ใช้สร้าง Pyro Stone',
     emoji: '🦂',
-    price: 150
+    price: 100
   }
 };
