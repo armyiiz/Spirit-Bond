@@ -5,7 +5,7 @@ import { MONSTER_DB } from '../data/monsters';
 import { ENEMIES } from '../data/enemies';
 import { RAID_BOSSES } from '../data/raid_bosses';
 import { ROUTES } from '../data/routes';
-import { Monster } from '../types';
+import { Monster, ElementType } from '../types';
 import { ITEMS } from '../data/items';
 
 export type BattleState = 'idle' | 'fighting' | 'victory' | 'defeat';
@@ -46,6 +46,20 @@ export const useBattle = () => {
   const [enemyHp, setEnemyHp] = useState(0);
   const [playerGauge, setPlayerGauge] = useState(0);
   const [enemyGauge, setEnemyGauge] = useState(0);
+
+  const getElementalMultiplier = (attacker: ElementType, defender: ElementType): number => {
+    if (attacker === 'Terra' && defender === 'Aero') return 1.5;
+    if (attacker === 'Aero' && defender === 'Aqua') return 1.5;
+    if (attacker === 'Aqua' && defender === 'Pyro') return 1.5;
+    if (attacker === 'Pyro' && defender === 'Terra') return 1.5;
+
+    if (attacker === 'Terra' && defender === 'Pyro') return 0.5;
+    if (attacker === 'Aero' && defender === 'Terra') return 0.5;
+    if (attacker === 'Aqua' && defender === 'Aero') return 0.5;
+    if (attacker === 'Pyro' && defender === 'Aqua') return 0.5;
+
+    return 1.0;
+  };
 
   const addLog = useCallback((text: string, color: string = 'text-slate-400') => {
     const newId = Date.now() + logIdCounter.current++;
@@ -202,6 +216,7 @@ export const useBattle = () => {
 
          const tokens = Math.floor(dmg / 100);
          addLog(`💎 ได้รับ ${tokens} Spirit Tokens`, 'text-purple-300');
+         addLog(`(นำไปแลกอุปกรณ์สวมใส่ได้ที่ Shop!)`, 'text-slate-500 text-[10px]');
 
      } else {
          // --- NORMAL BATTLE END LOGIC ---
@@ -275,15 +290,19 @@ export const useBattle = () => {
 
           if (isRaid) turnCountRef.current += 1; // Count turns only on player action? Or Global? Let's do player action = 1 turn.
 
-          const dmg = Math.max(1, Math.floor(myMonster.stats.atk - (enemy.stats.def * 0.5)));
+          const multiplier = getElementalMultiplier(myMonster.element, enemy.element);
+          const rawDmg = Math.max(1, myMonster.stats.atk - (enemy.stats.def * 0.5));
+          const dmg = Math.floor(rawDmg * multiplier);
           enemyHpRef.current -= dmg;
           setEnemyHp(enemyHpRef.current);
 
+          const typeText = multiplier > 1 ? ' (ชนะธาตุ!)' : (multiplier < 1 ? ' (แพ้ธาตุ...)' : '');
+
           if (isRaid) {
               totalDamageRef.current += dmg;
-              addLog(`Turn ${turnCountRef.current}/10: โจมตี! (-${dmg})`, 'text-emerald-400');
+              addLog(`Turn ${turnCountRef.current}/10: โจมตี! (-${dmg})${typeText}`, 'text-emerald-400');
           } else {
-              addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
+              addLog(`${myMonster.name} โจมตี! (-${dmg})${typeText}`, 'text-emerald-400');
           }
        }
 
@@ -293,10 +312,16 @@ export const useBattle = () => {
        enemyGaugeRef.current += (enemy.stats.spd * 0.1);
        if (enemyGaugeRef.current >= 100) {
           enemyGaugeRef.current = 0;
-          const dmg = Math.max(1, Math.floor(enemy.stats.atk - (myMonster.stats.def * 0.5)));
+
+          const multiplier = getElementalMultiplier(enemy.element, myMonster.element);
+          const rawDmg = Math.max(1, enemy.stats.atk - (myMonster.stats.def * 0.5));
+          const dmg = Math.floor(rawDmg * multiplier);
+
           playerHpRef.current -= dmg;
           setPlayerHp(playerHpRef.current);
-          addLog(`${enemy.name} สวนกลับ! (-${dmg})`, 'text-orange-400');
+
+          const typeText = multiplier > 1 ? ' (แรงมาก!)' : (multiplier < 1 ? ' (เบาหวิว)' : '');
+          addLog(`${enemy.name} สวนกลับ! (-${dmg})${typeText}`, 'text-orange-400');
        }
        setPlayerGauge(playerGaugeRef.current);
        setEnemyGauge(enemyGaugeRef.current);
