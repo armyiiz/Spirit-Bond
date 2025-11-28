@@ -135,8 +135,10 @@ export const useGameStore = create<GameState>()(
          const item = ITEMS[itemId];
          if (!item || !item.price) return;
 
-         // Check Currency
-         if (item.type === 'equipment') {
+         // Check Currency: Equipment & Material now use Tokens
+         const isTokenItem = item.type === 'equipment' || item.type === 'material';
+
+         if (isTokenItem) {
             if (state.spiritTokens < item.price) return;
          } else {
             if (state.player.gold < item.price) return;
@@ -170,7 +172,7 @@ export const useGameStore = create<GameState>()(
          else newInventory.push({ item, count: 1 });
 
          // Atomic Update
-         if (item.type === 'equipment') {
+         if (isTokenItem) {
              set({
                  spiritTokens: state.spiritTokens - item.price,
                  inventory: newInventory
@@ -187,8 +189,13 @@ export const useGameStore = create<GameState>()(
         const inventory = [...state.inventory];
         const itemIndex = inventory.findIndex(i => i.item.id === itemId);
         const monster = state.myMonster;
+
         if (itemIndex >= 0 && inventory[itemIndex].count > 0 && monster) {
            const itemDef = inventory[itemIndex].item;
+
+           // 🛡️ Guard Clause: ถ้าไม่ใช่ของกิน (Consumable) ให้หยุดทำงานทันที!
+           if (itemDef.type !== 'consumable') return;
+
            if (itemDef.effect) {
              state.updateVitals({ hunger: itemDef.effect.hunger || 0, mood: itemDef.effect.mood || 0 });
              let healAmount = 0;
