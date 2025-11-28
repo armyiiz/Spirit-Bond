@@ -36,6 +36,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
   const [canCloseBattle, setCanCloseBattle] = useState(false);
   const [sleepReport, setSleepReport] = useState<{ duration: number, hpGained: number, energyGained: number } | null>(null);
+  const [shopTab, setShopTab] = useState<'consumable' | 'evo' | 'equip'>('consumable');
 
   const scrollToBottom = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,40 +133,44 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                  <h3 className="font-bold text-red-400 flex items-center gap-2"><Sword size={20}/> Battle Hub</h3>
                  <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
              </div>
-             <p className="text-xs text-slate-400 text-center mb-2">เลือกโหมดการต่อสู้ที่ต้องการ</p>
 
-             <button
-                onClick={() => onModeChange('battle')}
-                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
-             >
-                 <div className="bg-red-900/50 p-3 rounded-full text-2xl">🥊</div>
-                 <div className="text-left">
-                     <h4 className="font-bold text-red-200">ประลอง (Arena)</h4>
-                     <p className="text-[10px] text-slate-400">สุ่มต่อสู้ 1-1 เพื่อเก็บเลเวลและเงิน</p>
-                 </div>
-             </button>
+             {/* Grid Layout for Arena & Adventure */}
+             <div className="grid grid-cols-2 gap-2">
+                 <button
+                    onClick={() => onModeChange('battle')}
+                    className="p-4 bg-slate-700 hover:bg-slate-600 rounded-lg border-2 border-slate-600 flex flex-col items-center justify-center gap-2 transition-all aspect-square"
+                 >
+                     <span className="text-3xl">🏟️</span>
+                     <span className="font-bold text-white">Arena</span>
+                 </button>
 
-             <button
-                onClick={() => onModeChange('explore')}
-                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
-             >
-                 <div className="bg-emerald-900/50 p-3 rounded-full text-2xl">🗺️</div>
-                 <div className="text-left">
-                     <h4 className="font-bold text-emerald-200">ผจญภัย (Adventure)</h4>
-                     <p className="text-[10px] text-slate-400">ออกสำรวจตามเส้นทาง ล่าวัตถุดิบและปราบบอส</p>
-                 </div>
-             </button>
+                 <button
+                    onClick={() => onModeChange('explore')}
+                    className="p-4 bg-green-900/50 hover:bg-green-800/50 rounded-lg border-2 border-green-700 flex flex-col items-center justify-center gap-2 transition-all aspect-square"
+                 >
+                     <span className="text-3xl">🗺️</span>
+                     <span className="font-bold text-green-100">Adventure</span>
+                 </button>
+             </div>
 
-             <button
-                onClick={() => onModeChange('raid')}
-                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
-             >
-                 <div className="bg-purple-900/50 p-3 rounded-full text-2xl">👹</div>
-                 <div className="text-left">
-                     <h4 className="font-bold text-purple-200">ภัยพิบัติ (Raid Boss)</h4>
-                     <p className="text-[10px] text-slate-400">รวมพลังปราบบอสยักษ์ (Reset Daily)</p>
-                 </div>
-             </button>
+             {/* Raid Boss (Compact) */}
+             <div className="mt-auto">
+                 <button
+                    onClick={() => onModeChange('raid')}
+                    className="w-full p-3 bg-gradient-to-r from-purple-900 to-slate-900 rounded-lg border-2 border-purple-500 flex items-center justify-between px-6"
+                 >
+                     <div className="flex items-center gap-3">
+                         <span className="text-2xl">👹</span>
+                         <div className="text-left">
+                             <div className="font-bold text-purple-200">Raid Boss</div>
+                             <div className="text-xs text-purple-400">Time Limited!</div>
+                         </div>
+                     </div>
+                     <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">
+                        {raidTickets}/3
+                     </span>
+                 </button>
+             </div>
         </div>
     );
   }
@@ -443,67 +448,102 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
 
   // --- SHOP MODE ---
   if (mode === 'shop') {
-    const shopItems = Object.values(ITEMS).filter(item => item.price && item.price > 0);
+    const shopItems = Object.values(ITEMS).filter(item => {
+        if (!item.price) return false;
+        if (shopTab === 'consumable') return item.type === 'consumable' || item.type === 'material';
+        if (shopTab === 'evo') return item.type === 'evo_material';
+        if (shopTab === 'equip') return item.type === 'equipment';
+        return false;
+    });
+
     return (
-        <div className="h-full bg-slate-900 p-4 flex flex-col">
-            <div className="flex justify-between items-center mb-2">
+        <div className="h-full bg-slate-900 p-4 flex flex-col gap-3">
+            <div className="flex justify-between items-center">
                 <h3 className="font-bold text-blue-400 flex items-center gap-2"><ShoppingCart size={18}/> ร้านค้า</h3>
-                <div className="text-xs text-yellow-400 font-mono bg-slate-800 px-2 py-1 rounded">
-                    💰 {player.gold} G
-                </div>
+                <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
             </div>
-            <button onClick={onReturnToIdle} className="text-xs underline text-slate-500 self-end mb-2">Close</button>
+
+            {/* Shop Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-950 rounded-lg">
+                {[
+                    { id: 'consumable', label: '🍎 ทั่วไป' },
+                    { id: 'evo', label: '💎 วิวัฒฯ' },
+                    { id: 'equip', label: '⚔️ อุปกรณ์' }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setShopTab(tab.id as any)}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
+                            shopTab === tab.id ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Currency Display */}
+            <div className="flex justify-between px-2 text-sm bg-slate-800/50 p-2 rounded-lg">
+                <span className="text-yellow-400 font-mono">💰 {player.gold} G</span>
+                <span className="text-purple-400 font-mono">💎 {spiritTokens} T</span>
+            </div>
 
             <div className="flex-1 overflow-y-auto space-y-2">
-                {shopItems.map(item => (
-                    <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
-                        <div className="text-3xl bg-slate-700 w-12 h-12 flex items-center justify-center rounded-lg">{item.emoji}</div>
-                        <div className="flex-1">
-                            <div className="font-bold text-slate-200 text-sm">{item.name}</div>
-                            <div className="text-[10px] text-slate-400">{item.description}</div>
-                            {item.craftReq && (
-                                <div className="flex gap-2 mt-1 flex-wrap">
-                                    {item.craftReq.map((req, idx) => {
-                                        const hasItem = inventory.find(i => i.item.id === req.itemId);
-                                        const currentCount = hasItem ? hasItem.count : 0;
-                                        const reqItemDef = Object.values(ITEMS).find(i => i.id === req.itemId);
+                {shopItems.map(item => {
+                    const price = item.price || 0;
+                    const isEquip = item.type === 'equipment';
+                    const canAfford = isEquip ? spiritTokens >= price : player.gold >= price;
+                    const currencyLabel = isEquip ? 'T' : 'G';
+                    const currencyColor = isEquip ? 'text-purple-400' : 'text-yellow-400';
+                    const btnColor = isEquip ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500';
 
-                                        return (
-                                            <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded border ${currentCount >= req.count ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300' : 'bg-red-900/50 border-red-700 text-red-300'}`}>
-                                                {reqItemDef?.emoji} {currentCount}/{req.count}
-                                            </span>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                             {item.stats && (
-                                <div className="text-[9px] text-green-400 mt-1">
-                                    {Object.entries(item.stats).map(([k,v]) => `${k.toUpperCase()} +${v}`).join(' ')}
-                                </div>
-                            )}
+                    // Check Craft Req
+                    const canCraft = !item.craftReq || item.craftReq.every(req => {
+                        const invItem = inventory.find(i => i.item.id === req.itemId);
+                        return invItem && invItem.count >= req.count;
+                    });
+
+                    return (
+                        <div key={item.id} className="bg-slate-800 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
+                            <div className="text-3xl bg-slate-700 w-12 h-12 flex items-center justify-center rounded-lg">{item.emoji}</div>
+                            <div className="flex-1">
+                                <div className="font-bold text-slate-200 text-sm">{item.name}</div>
+                                <div className="text-[10px] text-slate-400">{item.description}</div>
+                                {item.craftReq && (
+                                    <div className="flex gap-2 mt-1 flex-wrap">
+                                        {item.craftReq.map((req, idx) => {
+                                            const hasItem = inventory.find(i => i.item.id === req.itemId);
+                                            const currentCount = hasItem ? hasItem.count : 0;
+                                            const reqItemDef = Object.values(ITEMS).find(i => i.id === req.itemId);
+
+                                            return (
+                                                <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded border ${currentCount >= req.count ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300' : 'bg-red-900/50 border-red-700 text-red-300'}`}>
+                                                    {reqItemDef?.emoji} {currentCount}/{req.count}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {item.stats && (
+                                    <div className="text-[9px] text-green-400 mt-1">
+                                        {Object.entries(item.stats).map(([k,v]) => `${k.toUpperCase()} +${v}`).join(' ')}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => buyItem(item.id)}
+                                disabled={!canAfford || !canCraft}
+                                className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${
+                                    canAfford && canCraft
+                                    ? `${btnColor} text-white`
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                }`}
+                            >
+                                {price} {currencyLabel}
+                            </button>
                         </div>
-                        <button
-                            onClick={() => buyItem(item.id)}
-                            disabled={
-                                player.gold < (item.price || 0) ||
-                                (item.craftReq && !item.craftReq.every(req => {
-                                    const invItem = inventory.find(i => i.item.id === req.itemId);
-                                    return invItem && invItem.count >= req.count;
-                                }))
-                            }
-                            className={`px-3 py-2 rounded text-xs font-bold min-w-[60px] ${
-                                player.gold >= (item.price || 0) && (!item.craftReq || item.craftReq.every(req => {
-                                    const invItem = inventory.find(i => i.item.id === req.itemId);
-                                    return invItem && invItem.count >= req.count;
-                                }))
-                                ? 'bg-blue-600 text-white hover:bg-blue-500'
-                                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                            }`}
-                        >
-                            {item.price} G
-                        </button>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

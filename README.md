@@ -75,6 +75,20 @@
     2.  **Adventure:** โหมดเนื้อเรื่องตะลุยด่าน (Exploration Routes)
     3.  **Raid:** โหมดล่าบอสรายวัน
 
+### Phase 7: การปรับปรุงสมดุลและ UX (Balance & UX - Patch 3.1)
+*   **Elemental Advantage (ระบบแพ้ธาตุ):**
+    *   เพิ่มระบบคำนวณความเสียหายตามธาตุ:
+        *   **Advantage (1.5x):** ชนะธาตุ ตีแรงขึ้น 50%
+        *   **Disadvantage (0.5x):** แพ้ธาตุ ตีเบาลง 50%
+    *   แสดงผล "ชนะธาตุ!" หรือ "แพ้ธาตุ..." ใน Battle Log
+*   **Shop Overhaul (ปรับปรุงร้านค้า):**
+    *   **Token Currency:** รองรับการใช้ **Spirit Tokens** (จาก Raid) เพื่อแลกซื้ออุปกรณ์สวมใส่ (Equipment)
+    *   **Categorization:** แยก Tab หมวดหมู่สินค้า (ทั่วไป, วิวัฒนาการ, อุปกรณ์) เพื่อให้ค้นหาง่ายขึ้น
+    *   **Price Adjustment:** ปรับราคาอุปกรณ์ Tier แรกให้เหมาะสมกับผู้เล่นใหม่ (15 Tokens)
+*   **Battle Hub UI Redesign:**
+    *   ปรับ Layout ปุ่มเป็นแบบ Grid 2 คอลัมน์ (Arena, Adventure) เพื่อลดการใช้พื้นที่
+    *   ปุ่ม Raid Boss แบบ Compact เต็มความกว้างด้านล่าง เน้นความชัดเจนและไม่จมไปกับปุ่มอื่น
+
 ---
 
 ## คู่มือการติดตั้ง (Installation)
