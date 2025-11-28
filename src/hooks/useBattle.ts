@@ -3,17 +3,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { MONSTER_DB } from '../data/monsters';
 import { ENEMIES } from '../data/enemies';
+import { RAID_BOSSES } from '../data/raid_bosses';
 import { ROUTES } from '../data/routes';
 import { Monster } from '../types';
 import { ITEMS } from '../data/items';
 
-// ... (Types เหมือนเดิม) ...
 export type BattleState = 'idle' | 'fighting' | 'victory' | 'defeat';
 export interface LogEntry { id: number; text: string; color: string; }
 export type BattleResult = 'win' | 'lose' | 'fled' | null;
 
 export const useBattle = () => {
-  // ✅ 1. ใช้ Selector แบบเจาะจง (Atomic Selectors) เพื่อป้องกัน Re-render loop
   const myMonster = useGameStore(state => state.myMonster);
   const updateVitals = useGameStore(state => state.updateVitals);
   const gainRewards = useGameStore(state => state.gainRewards);
@@ -21,17 +20,21 @@ export const useBattle = () => {
   const addItem = useGameStore(state => state.addItem);
   const advanceExploration = useGameStore(state => state.advanceExploration);
   const resetExploration = useGameStore(state => state.resetExploration);
+  const recordRaidDamage = useGameStore(state => state.recordRaidDamage);
 
-  // ✅ ดึงแยกกัน เพื่อไม่ให้สร้าง Object ใหม่ทุก render
   const activeRouteId = useGameStore(state => state.activeRouteId);
   const explorationStep = useGameStore(state => state.explorationStep || 0);
 
   const [isActive, setIsActive] = useState(false);
-  // ... (State อื่นๆ เหมือนเดิม)
   const [result, setResult] = useState<BattleResult>(null);
   const [enemy, setEnemy] = useState<Monster | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [isPaused, setIsPaused] = useState(false); // [NEW] Pause State
+  const [isPaused, setIsPaused] = useState(false);
+
+  // New Raid State
+  const [isRaid, setIsRaid] = useState(false);
+  const turnCountRef = useRef(0);
+  const totalDamageRef = useRef(0);
 
   const logIdCounter = useRef(0);
   const playerHpRef = useRef(0);
@@ -49,41 +52,51 @@ export const useBattle = () => {
     setLogs(prev => [...prev.slice(-4), { id: newId, text, color }]);
   }, []);
 
-  const startBattle = useCallback((routeId?: string) => {
-    // ✅ Fetch fresh state directly to avoid stale closures
+  const startBattle = useCallback((routeId?: string, raidBossId?: string) => {
     const state = useGameStore.getState();
     const currentMonster = state.myMonster;
     const currentStep = state.explorationStep;
-
-    // Use passed routeId if available, otherwise fallback to store
     const currentRouteId = routeId || state.activeRouteId;
 
     if (!currentMonster) return;
     let randomBase: Monster | null = null;
+    let isRaidBattle = false;
 
-    if (currentRouteId) {
+    // 1. Raid Battle Logic
+    if (raidBossId && RAID_BOSSES[raidBossId]) {
+        const bossData = RAID_BOSSES[raidBossId];
+        randomBase = {
+            id: bossData.id,
+            speciesId: 0,
+            name: bossData.name,
+            element: bossData.element,
+            stage: 4, // Boss Stage
+            level: 99,
+            exp: 0,
+            maxExp: 100,
+            stats: { ...bossData.stats },
+            vitals: { hunger: 100, mood: 100, energy: 100 },
+            appearance: { emoji: bossData.emoji, color: 'bg-red-950' },
+            poopCount: 0
+        };
+        isRaidBattle = true;
+    }
+    // 2. Adventure/Route Logic
+    else if (currentRouteId) {
         const route = ROUTES.find(r => r.id === currentRouteId);
         if (route) {
             let enemyId: string | undefined;
-
-            // ⚔️ Encounter Logic (Fixed Progression)
             if (currentStep < 3) {
-                // Steps 0-2: Minions (Indices 0, 1, 2)
                 const minions = route.enemies.slice(0, 3);
-                if (minions.length > 0) {
-                   enemyId = minions[Math.floor(Math.random() * minions.length)];
-                }
+                if (minions.length > 0) enemyId = minions[Math.floor(Math.random() * minions.length)];
             } else if (currentStep === 3) {
-                // Step 3: Mini-Boss (Index 3)
                 enemyId = route.enemies[3];
             } else if (currentStep >= 4) {
-                // Step 4: Boss
                 enemyId = route.bossId;
             }
 
             if (enemyId && ENEMIES[enemyId]) {
                  const enemyData = ENEMIES[enemyId];
-                 // Fix crash prevention logic
                  randomBase = {
                     id: enemyData.id,
                     speciesId: 0,
@@ -102,6 +115,7 @@ export const useBattle = () => {
         }
     }
 
+    // 3. Fallback / Arena Logic
     if (!randomBase) {
         const possibleEnemies = MONSTER_DB.filter(m => m.stage === currentMonster.stage);
         const enemyPool = possibleEnemies.length > 0 ? possibleEnemies : MONSTER_DB;
@@ -110,21 +124,21 @@ export const useBattle = () => {
 
     if (!randomBase) return;
 
-    // Balancing Logic (Updated to use absolute level range)
+    // Balancing Logic
     let minLevel = 1;
     let maxLevel = 1;
 
-    if (currentRouteId && randomBase.id && ENEMIES[randomBase.id]) {
-      // Use defined absolute range from enemy data
+    if (isRaidBattle) {
+        minLevel = 99; maxLevel = 99;
+    } else if (currentRouteId && randomBase.id && ENEMIES[randomBase.id]) {
       [minLevel, maxLevel] = ENEMIES[randomBase.id].levelRange;
     } else {
-      // Fallback for random encounters not in route (should rarely happen)
       minLevel = Math.max(1, (currentMonster.level || 1) - 1);
       maxLevel = Math.max(1, (currentMonster.level || 1) + 1);
     }
 
     const enemyLevel = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
-    const scale = 1 + ((enemyLevel - 1) * 0.1);
+    const scale = isRaidBattle ? 1 : (1 + ((enemyLevel - 1) * 0.1));
 
     const newEnemy: Monster = {
       ...randomBase,
@@ -139,7 +153,7 @@ export const useBattle = () => {
       },
       vitals: randomBase.vitals || { hunger: 100, mood: 100, energy: 100 },
       poopCount: 0,
-      drops: randomBase.drops // Ensure drops are carried over
+      drops: randomBase.drops
     };
 
     setEnemy(newEnemy);
@@ -151,99 +165,131 @@ export const useBattle = () => {
     setEnemyHp(newEnemy.stats.maxHp);
     enemyGaugeRef.current = 0;
     setEnemyGauge(0);
+
+    // Reset Battle State
     setLogs([]);
     setResult(null);
     setIsActive(true);
+    setIsRaid(isRaidBattle);
+    turnCountRef.current = 0;
+    totalDamageRef.current = 0;
 
-    const stepText = currentRouteId ? `(ด่าน ${currentStep + 1}/5)` : '';
-    addLog(`⚔️ พบศัตรู${stepText}: ${newEnemy.name} (Lv.${newEnemy.level})`, 'text-red-400');
+    const stepText = (currentRouteId && !isRaidBattle) ? `(ด่าน ${currentStep + 1}/5)` : '';
+    const raidText = isRaidBattle ? '👹 RAID BOSS APPEARED!' : '⚔️ พบศัตรู';
+    addLog(`${raidText}${stepText}: ${newEnemy.name} (Lv.${newEnemy.level})`, isRaidBattle ? 'text-purple-400 font-bold' : 'text-red-400');
 
-  }, [addLog]); // Dependencies reduced to stable addLog
+  }, [addLog]);
 
   const endBattle = useCallback((finalResult: 'win' | 'lose' | 'fled') => {
-     // ... (Logic เดิม) ...
      setIsActive(false);
      setResult(finalResult);
-     if (finalResult === 'win' && enemy) {
-          const gold = enemy.level * 10;
-          const exp = enemy.level * 20;
 
-          // --- [FIX 1] Drop Item Logic ---
-          const droppedItems: string[] = [];
-          if (enemy.drops) {
-            enemy.drops.forEach(drop => {
-              // สุ่ม Drop ตามโอกาส (Chance)
-              if (Math.random() <= drop.chance) {
-                addItem(drop.itemId, 1);
-                // หาชื่อไอเทมมาแสดงใน Log (Optional)
-                const itemName = ITEMS[drop.itemId]?.name || drop.itemId;
-                droppedItems.push(itemName);
-              }
-            });
-          }
+     if (isRaid) {
+         // --- RAID END LOGIC ---
+         const dmg = totalDamageRef.current;
+         recordRaidDamage(dmg);
 
-          // สร้าง Log รางวัล
-          let rewardText = `🏆 ชนะ! ได้รับ ${gold}G, ${exp}EXP`;
-          if (droppedItems.length > 0) {
-            rewardText += ` และไอเทม: ${droppedItems.join(', ')}`;
-          }
-          addLog(rewardText, 'text-yellow-400');
-
-          gainRewards(exp, gold, playerHpRef.current);
-          updateVitals({ hunger: -2, energy: -5 });
-
-          // --- [FIX 2 & 3] Progression Logic ---
-          if (activeRouteId) {
-             // เช็คว่าชนะบอส (Step 4) หรือยัง?
-             if (explorationStep >= 4) {
-                addLog('🎉 เคลียร์ดันเจี้ยนสำเร็จ! กลับสู่เมือง...', 'text-purple-400');
-                // จบด่าน: รีเซ็ต Step และ Route
-                resetExploration();
-             } else {
-                // ยังไม่จบบอส: ไปด่านถัดไป
-                addLog('👣 มุ่งหน้าสู่พื้นที่ถัดไป...', 'text-blue-300');
-                advanceExploration();
-             }
-          }
-
-     } else if (finalResult === 'lose') {
-         addLog('💀 พ่ายแพ้... ถูกส่งกลับเมืองเพื่อรักษาตัว', 'text-red-600');
-         updateVitals({ mood: -20, energy: -10 });
-         if (myMonster) {
-             setMyMonster({ ...myMonster, stats: { ...myMonster.stats, hp: 1 } });
+         if (finalResult === 'lose') { // Player died
+             addLog(`💀 พ่ายแพ้... (Damage: ${dmg})`, 'text-red-500');
+             updateVitals({ energy: -10 });
+             if (myMonster) setMyMonster({ ...myMonster, stats: { ...myMonster.stats, hp: 1 } });
+         } else if (finalResult === 'win') { // Boss died (Unlikely)
+             addLog(`🏆 ปาฏิหาริย์! คุณชนะบอส! (Damage: ${dmg})`, 'text-yellow-400 font-bold');
+         } else { // Fled or Time Out (Treated as 'win' contextually for rewards?)
+             // Fled/Timeout -> Just record damage
+             addLog(`⏱️ จบการต่อสู้! (Damage: ${dmg})`, 'text-blue-300');
          }
-         // แพ้แล้วต้องกลับบ้าน!
-         resetExploration();
-     } else {
-         addLog('💨 หนีสำเร็จ!', 'text-slate-400');
-         updateVitals({ energy: -5 });
-     }
-  }, [enemy, gainRewards, updateVitals, myMonster, setMyMonster, addLog, addItem, advanceExploration, resetExploration, activeRouteId, explorationStep]);
 
-  // useEffect สำหรับ Battle Loop (เหมือนเดิม)
+         const tokens = Math.floor(dmg / 100);
+         addLog(`💎 ได้รับ ${tokens} Spirit Tokens`, 'text-purple-300');
+
+     } else {
+         // --- NORMAL BATTLE END LOGIC ---
+         if (finalResult === 'win' && enemy) {
+              const gold = enemy.level * 10;
+              const exp = enemy.level * 20;
+
+              const droppedItems: string[] = [];
+              if (enemy.drops) {
+                enemy.drops.forEach(drop => {
+                  if (Math.random() <= drop.chance) {
+                    addItem(drop.itemId, 1);
+                    const itemName = ITEMS[drop.itemId]?.name || drop.itemId;
+                    droppedItems.push(itemName);
+                  }
+                });
+              }
+
+              let rewardText = `🏆 ชนะ! ได้รับ ${gold}G, ${exp}EXP`;
+              if (droppedItems.length > 0) {
+                rewardText += ` และไอเทม: ${droppedItems.join(', ')}`;
+              }
+              addLog(rewardText, 'text-yellow-400');
+
+              gainRewards(exp, gold, playerHpRef.current);
+              updateVitals({ hunger: -2, energy: -5 });
+
+              if (activeRouteId) {
+                 if (explorationStep >= 4) {
+                    addLog('🎉 เคลียร์ดันเจี้ยนสำเร็จ! กลับสู่เมือง...', 'text-purple-400');
+                    resetExploration();
+                 } else {
+                    addLog('👣 มุ่งหน้าสู่พื้นที่ถัดไป...', 'text-blue-300');
+                    advanceExploration();
+                 }
+              }
+
+         } else if (finalResult === 'lose') {
+             addLog('💀 พ่ายแพ้... ถูกส่งกลับเมืองเพื่อรักษาตัว', 'text-red-600');
+             updateVitals({ mood: -20, energy: -10 });
+             if (myMonster) {
+                 setMyMonster({ ...myMonster, stats: { ...myMonster.stats, hp: 1 } });
+             }
+             resetExploration();
+         } else {
+             addLog('💨 หนีสำเร็จ!', 'text-slate-400');
+             updateVitals({ energy: -5 });
+         }
+     }
+  }, [enemy, isRaid, gainRewards, updateVitals, myMonster, setMyMonster, addLog, addItem, advanceExploration, resetExploration, activeRouteId, explorationStep, recordRaidDamage]);
+
   useEffect(() => {
     if (!isActive || !myMonster || !enemy) return;
 
     const interval = setInterval(() => {
-       if (isPaused) return; // [NEW] Pause Check
+       if (isPaused) return;
 
-       // [NEW] Strict HP Checks (Race Condition Fix)
        if (playerHpRef.current <= 0) { endBattle('lose'); return; }
        if (enemyHpRef.current <= 0) { endBattle('win'); return; }
 
-       // ... (Logic ตีกันเหมือนเดิม) ...
+       // RAID Turn Limit Check
+       if (isRaid && turnCountRef.current >= 10) {
+           endBattle('fled'); // Treat timeout as 'fled'/'end'
+           return;
+       }
+
+       // Player Turn
        playerGaugeRef.current += (myMonster.stats.spd * 0.1);
        if (playerGaugeRef.current >= 100) {
           playerGaugeRef.current = 0;
+
+          if (isRaid) turnCountRef.current += 1; // Count turns only on player action? Or Global? Let's do player action = 1 turn.
+
           const dmg = Math.max(1, Math.floor(myMonster.stats.atk - (enemy.stats.def * 0.5)));
           enemyHpRef.current -= dmg;
           setEnemyHp(enemyHpRef.current);
-          addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
+
+          if (isRaid) {
+              totalDamageRef.current += dmg;
+              addLog(`Turn ${turnCountRef.current}/10: โจมตี! (-${dmg})`, 'text-emerald-400');
+          } else {
+              addLog(`${myMonster.name} โจมตี! (-${dmg})`, 'text-emerald-400');
+          }
        }
 
-       // Check enemy HP again before they attack
        if (enemyHpRef.current <= 0) return;
 
+       // Enemy Turn
        enemyGaugeRef.current += (enemy.stats.spd * 0.1);
        if (enemyGaugeRef.current >= 100) {
           enemyGaugeRef.current = 0;
@@ -256,7 +302,7 @@ export const useBattle = () => {
        setEnemyGauge(enemyGaugeRef.current);
     }, 100);
     return () => clearInterval(interval);
-  }, [isActive, myMonster, enemy, endBattle, addLog, isPaused]);
+  }, [isActive, myMonster, enemy, endBattle, addLog, isPaused, isRaid]);
 
   return {
     isActive, result, enemy, playerHp, enemyHp, logs, startBattle,

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, Monster } from '../types';
+import { GameState, Monster, Stats } from '../types';
 import { STARTERS } from '../data/monsters';
 import { ITEMS } from '../data/items';
 
@@ -19,40 +19,50 @@ export const useGameStore = create<GameState>()(
       sleepSummary: null,
       activeRouteId: null,
 
-      // [NEW] Exploration State
+      // Exploration State
       explorationStep: 0,
 
-      setActiveRoute: (routeId) => set({ activeRouteId: routeId, explorationStep: 0 }), // Reset step when picking route
+      // New Features State
+      raidTickets: 3,
+      spiritTokens: 0,
+      totalRaidDamage: 0,
+      lastLoginDate: null,
+      equippedItemId: null,
+
+      setActiveRoute: (routeId) => set({ activeRouteId: routeId, explorationStep: 0 }),
       advanceExploration: () => set((state) => ({ explorationStep: state.explorationStep + 1 })),
       resetExploration: () => set({ explorationStep: 0, activeRouteId: null }),
 
-      // ... (ฟังก์ชันเดิม: startGame, setLastSaveTime, setMyMonster)
+      // Actions
       startGame: (starterSpeciesId: number) => {
         const starter = STARTERS.find(m => m.speciesId === starterSpeciesId);
         if (starter) {
           set({
             myMonster: { ...JSON.parse(JSON.stringify(starter)), poopCount: 0 },
-            lastSaveTime: Date.now()
+            lastSaveTime: Date.now(),
+            raidTickets: 3,
+            lastLoginDate: new Date().toISOString().split('T')[0]
           });
         }
       },
       setLastSaveTime: (time) => set({ lastSaveTime: time }),
       setMyMonster: (m) => set({ myMonster: m }),
 
-      // ... (ฟังก์ชันเดิม: toggleSleep, wakeUp, clearSleepSummary, tick, updateVitals)
       toggleSleep: () => {
         const state = get();
         if (!state.isSleeping) {
           set({ isSleeping: true, sleepTimestamp: Date.now() });
         } else {
-           // Direct wake up call is now handled by UI to get return value
-           // But if called without checking return, we assume standard wake up.
           state.wakeUp();
         }
       },
       wakeUp: () => {
         const state = get();
         const { myMonster, isSleeping, sleepTimestamp } = state;
+
+        // Daily Reset Check
+        state.checkDailyReset();
+
         if (myMonster && isSleeping && sleepTimestamp) {
           const now = Date.now();
           const secondsAsleep = (now - sleepTimestamp) / 1000;
@@ -72,7 +82,7 @@ export const useGameStore = create<GameState>()(
             myMonster: { ...myMonster, stats: { ...myMonster.stats, hp: newHp }, vitals: { ...myMonster.vitals, energy: newEnergy } },
             isSleeping: false,
             sleepTimestamp: null,
-            sleepSummary: null // Clear old summary if any
+            sleepSummary: null
           });
 
           return { duration: secondsAsleep, hpGained: actualHpGained, energyGained: actualEnergyGained };
@@ -110,7 +120,6 @@ export const useGameStore = create<GameState>()(
         set({ myMonster: { ...monster, vitals: newVitals } });
       },
 
-      // ... (ฟังก์ชันเดิม: resetSave, addItem, buyItem, useItem, trainMonster, feedGeneric, bathMonster, cleanPoop, gainRewards)
       resetSave: () => { localStorage.removeItem('spirit-bond-storage'); window.location.reload(); },
       addItem: (itemId, count) => {
         const item = ITEMS[itemId];
@@ -126,10 +135,8 @@ export const useGameStore = create<GameState>()(
          const item = ITEMS[itemId];
          if (!item || !item.price) return;
 
-         // Check Gold
          if (state.player.gold < item.price) return;
 
-         // Check Materials
          if (item.craftReq) {
             for (const req of item.craftReq) {
                const invItem = state.inventory.find(i => i.item.id === req.itemId);
@@ -137,7 +144,6 @@ export const useGameStore = create<GameState>()(
             }
          }
 
-         // Deduct Materials
          let newInventory = [...state.inventory];
          if (item.craftReq) {
             item.craftReq.forEach(req => {
@@ -151,16 +157,11 @@ export const useGameStore = create<GameState>()(
             });
          }
 
-         // Deduct Gold and Add Item
          set({
              player: { ...state.player, gold: state.player.gold - item.price },
              inventory: newInventory
          });
 
-         // Use existing addItem logic but we already mutated inventory, so we just push the new item
-         // Actually, state.addItem() reads get().inventory, so we should call it after setting inventory,
-         // OR just handle the addition manually here to be atomic.
-         // Let's do it manually to ensure atomicity with material deduction.
          const existingIndex = newInventory.findIndex(i => i.item.id === itemId);
          if (existingIndex >= 0) newInventory[existingIndex].count += 1;
          else newInventory.push({ item, count: 1 });
@@ -235,6 +236,16 @@ export const useGameStore = create<GameState>()(
         let newMaxExp = monster.maxExp;
         let newStats = { ...monster.stats };
         if (remainingHp !== undefined) newStats.hp = remainingHp;
+
+        // Remove equipment stats before recalculating
+        const equippedItem = state.equippedItemId ? ITEMS[state.equippedItemId] : null;
+        if (equippedItem && equippedItem.stats) {
+           if (equippedItem.stats.atk) newStats.atk -= equippedItem.stats.atk;
+           if (equippedItem.stats.def) newStats.def -= equippedItem.stats.def;
+           if (equippedItem.stats.spd) newStats.spd -= equippedItem.stats.spd;
+           if (equippedItem.stats.maxHp) newStats.maxHp -= equippedItem.stats.maxHp;
+        }
+
         while (newExp >= newMaxExp) {
            newExp -= newMaxExp; newLevel += 1; newMaxExp = Math.floor(newMaxExp * 1.2);
            newStats = {
@@ -243,6 +254,15 @@ export const useGameStore = create<GameState>()(
              spd: Math.floor(newStats.spd * 1.1), luk: Math.floor(newStats.luk * 1.1),
            };
         }
+
+        // Re-apply equipment stats
+        if (equippedItem && equippedItem.stats) {
+           if (equippedItem.stats.atk) newStats.atk += equippedItem.stats.atk;
+           if (equippedItem.stats.def) newStats.def += equippedItem.stats.def;
+           if (equippedItem.stats.spd) newStats.spd += equippedItem.stats.spd;
+           if (equippedItem.stats.maxHp) newStats.maxHp += equippedItem.stats.maxHp;
+        }
+
         if (newLevel > monster.level) newStats.hp = newStats.maxHp;
         set({ player: newPlayer, myMonster: { ...monster, level: newLevel, exp: newExp, maxExp: newMaxExp, stats: newStats } });
       },
@@ -251,6 +271,70 @@ export const useGameStore = create<GameState>()(
       },
       evolveMonster: (targetSpeciesId, requiredItem) => {
         console.log(`Evolving to ${targetSpeciesId} with ${requiredItem} - Not implemented`);
+      },
+
+      // --- New Actions ---
+      checkDailyReset: () => {
+        const state = get();
+        const today = new Date().toISOString().split('T')[0];
+        if (state.lastLoginDate !== today) {
+           set({ raidTickets: 3, lastLoginDate: today, totalRaidDamage: 0 });
+        }
+      },
+      recordRaidDamage: (damage) => {
+        const state = get();
+        const tokens = Math.floor(damage / 100);
+        set({
+            totalRaidDamage: state.totalRaidDamage + damage,
+            spiritTokens: state.spiritTokens + tokens
+        });
+      },
+      equipItem: (itemId) => {
+        const state = get();
+        const monster = state.myMonster;
+        const item = ITEMS[itemId];
+        if (!monster || !item || item.type !== 'equipment' || !item.stats) return;
+
+        // Unequip first if needed
+        if (state.equippedItemId) {
+            state.unequipItem();
+        }
+
+        // Apply new stats
+        const newStats = { ...monster.stats };
+        if (item.stats.atk) newStats.atk += item.stats.atk;
+        if (item.stats.def) newStats.def += item.stats.def;
+        if (item.stats.spd) newStats.spd += item.stats.spd;
+        if (item.stats.maxHp) newStats.maxHp += item.stats.maxHp;
+
+        set({
+            equippedItemId: itemId,
+            myMonster: { ...monster, stats: newStats }
+        });
+      },
+      unequipItem: () => {
+        const state = get();
+        const monster = state.myMonster;
+        const currentId = state.equippedItemId;
+        if (!monster || !currentId) return;
+
+        const item = ITEMS[currentId];
+        if (!item || !item.stats) return;
+
+        // Remove stats
+        const newStats = { ...monster.stats };
+        if (item.stats.atk) newStats.atk = Math.max(1, newStats.atk - item.stats.atk);
+        if (item.stats.def) newStats.def = Math.max(1, newStats.def - item.stats.def);
+        if (item.stats.spd) newStats.spd = Math.max(1, newStats.spd - item.stats.spd);
+        if (item.stats.maxHp) newStats.maxHp = Math.max(1, newStats.maxHp - item.stats.maxHp);
+
+        // Ensure HP doesn't exceed new MaxHP
+        if (newStats.hp > newStats.maxHp) newStats.hp = newStats.maxHp;
+
+        set({
+            equippedItemId: null,
+            myMonster: { ...monster, stats: newStats }
+        });
       }
     }),
     { name: 'spirit-bond-storage' }

@@ -74,6 +74,26 @@ export const ITEMS: Record<string, Item> = {
     craftReq: [{ itemId: 'evo_tail_pyro', count: 1 }, { itemId: 'evo_stinger_pyro', count: 1 }]
   },
 
+  // --- Equipment ---
+  'equip_wooden_sword': {
+    id: 'equip_wooden_sword',
+    type: 'equipment',
+    name: 'ดาบไม้',
+    description: 'ดาบฝึกหัดทำจากไม้เนื้อแข็ง',
+    emoji: '⚔️',
+    stats: { atk: 5 },
+    price: 100
+  },
+  'equip_copper_ring': {
+    id: 'equip_copper_ring',
+    type: 'equipment',
+    name: 'แหวนทองแดง',
+    description: 'แหวนราคาถูกแต่ช่วยให้แข็งแรงขึ้น',
+    emoji: '🛡️',
+    stats: { maxHp: 20 },
+    price: 100
+  },
+
   // --- Boss Drops (Materials: Terra) ---
   'evo_shard_terra': {
     id: 'evo_shard_terra',

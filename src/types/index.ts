@@ -35,7 +35,7 @@ export interface Monster {
   };
 }
 
-export type ItemType = 'consumable' | 'evo_material' | 'material';
+export type ItemType = 'consumable' | 'evo_material' | 'material' | 'equipment';
 
 export interface ItemEffect {
   hunger?: number;
@@ -50,6 +50,7 @@ export interface Item {
   name: string;
   description: string;
   effect?: ItemEffect;
+  stats?: Partial<Stats>; // For Equipment
   emoji: string;
   price?: number; // For Shop
   craftReq?: { itemId: string; count: number }[]; // For Crafting/Trading
@@ -83,7 +84,14 @@ export interface GameState {
 
   // Exploration State
   activeRouteId: string | null;
-  explorationStep: number; // [NEW] ตัวนับด่าน (0-4)
+  explorationStep: number;
+
+  // New Features State
+  raidTickets: number;
+  spiritTokens: number;
+  totalRaidDamage: number;
+  lastLoginDate: string | null; // YYYY-MM-DD
+  equippedItemId: string | null;
 
   // Actions
   startGame: (starterId: number) => void;
@@ -108,8 +116,16 @@ export interface GameState {
 
   // Exploration Actions
   setActiveRoute: (routeId: string | null) => void;
-  advanceExploration: () => void; // [NEW]
-  resetExploration: () => void;   // [NEW]
+  advanceExploration: () => void;
+  resetExploration: () => void;
+
+  // Equipment Actions
+  equipItem: (itemId: string) => void;
+  unequipItem: () => void;
+
+  // Raid Actions
+  checkDailyReset: () => void; // Checks date and resets tickets
+  recordRaidDamage: (damage: number) => void;
 }
 
 export interface LootTable {
