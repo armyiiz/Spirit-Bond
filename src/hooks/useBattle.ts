@@ -33,6 +33,7 @@ export const useBattle = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false); // [NEW] Pause State
 
+  const logIdCounter = useRef(0);
   const playerHpRef = useRef(0);
   const enemyHpRef = useRef(0);
   const playerGaugeRef = useRef(0);
@@ -44,7 +45,8 @@ export const useBattle = () => {
   const [enemyGauge, setEnemyGauge] = useState(0);
 
   const addLog = useCallback((text: string, color: string = 'text-slate-400') => {
-    setLogs(prev => [...prev.slice(-4), { id: Date.now(), text, color }]);
+    const newId = Date.now() + logIdCounter.current++;
+    setLogs(prev => [...prev.slice(-4), { id: newId, text, color }]);
   }, []);
 
   const startBattle = useCallback((routeId?: string) => {
