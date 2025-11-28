@@ -61,6 +61,20 @@
 *   **Sleep Summary:** หน้าสรุปผลหลังตื่นนอน แสดงค่าที่ฟื้นฟูไประหว่างออฟไลน์
 *   **Localization:** UI และข้อความในเกมทั้งหมดเป็น **ภาษาไทย**
 
+### Phase 6: เนื้อหาขั้นสูง (Advanced Content - Patch 3.0)
+*   **Raid System (Spirit Calamity):**
+    *   บอส **Titan** หมุนเวียนรายวันตามธาตุ (จันทร์/พฤหัส: Terra, อังคาร/ศุกร์: Pyro, พุธ/เสาร์: Aqua, อาทิตย์: Aero)
+    *   การต่อสู้จำกัดเวลา **10 Turns** เน้นทำ Damage สูงสุด
+    *   **Spirit Tokens:** รางวัลที่ได้จากการคำนวณ Damage (1 Token ต่อ 100 Damage)
+    *   **Raid Tickets:** โควต้าลง Raid 3 ครั้ง/วัน (รีเซ็ตตอน `wakeUp`)
+*   **Equipment System:**
+    *   ไอเทมประเภท `equipment` ช่วยเพิ่มค่า Stats
+    *   การคำนวณ Stats เป็นแบบ Additive (Base Stats + Equipment Bonus) โดยจะคำนวณใหม่ทุกครั้งที่ Level up เพื่อความถูกต้อง
+*   **Battle Hub:** ปรับปรุงเมนู Battle ให้รวม 3 โหมดไว้ด้วยกัน:
+    1.  **Arena:** Quick Battle กับมอนสเตอร์สุ่ม (ใช้ Global Pool)
+    2.  **Adventure:** โหมดเนื้อเรื่องตะลุยด่าน (Exploration Routes)
+    3.  **Raid:** โหมดล่าบอสรายวัน
+
 ---
 
 ## คู่มือการติดตั้ง (Installation)
