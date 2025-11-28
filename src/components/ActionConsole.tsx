@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LogEntry, BattleResult } from '../hooks/useBattle';
 import { EVOLUTIONS } from '../data/monsters';
-import { ITEMS } from '../data/items'; // Import items for shop
+import { ITEMS } from '../data/items';
 import { ROUTES } from '../data/routes';
-import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle, Backpack, Home } from 'lucide-react'; // เพิ่ม icon
+import { RAID_BOSSES } from '../data/raid_bosses';
+import { Heart, Zap, Smile, Trash2, Utensils, Bath, Moon, Sun, LogOut, ShoppingCart, Lock, ArrowRightCircle, Backpack, Home, Sword, Map, Shield, Skull, Ticket } from 'lucide-react';
 
-export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings' | 'sleep_summary';
+export type ConsoleMode = 'idle' | 'care' | 'train' | 'battle' | 'bag' | 'evo' | 'explore' | 'shop' | 'settings' | 'sleep_summary' | 'battle_hub' | 'equipment' | 'raid';
 
 interface ActionConsoleProps {
   mode: ConsoleMode;
@@ -28,7 +29,8 @@ interface ActionConsoleProps {
 const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onReturnToIdle, onModeChange }) => {
   const { myMonster, player, inventory, useItem, updateVitals, trainMonster, feedGeneric, cleanPoop, isSleeping, toggleSleep, resetSave, buyItem, bathMonster,
           activeRouteId, explorationStep, advanceExploration, resetExploration,
-          wakeUp // Use wakeUp directly
+          wakeUp, equipItem, unequipItem, equippedItemId,
+          raidTickets, spiritTokens, totalRaidDamage
         } = useGameStore();
   const logEndRef = useRef<HTMLDivElement>(null);
   const [trainingResult, setTrainingResult] = useState<{ stat: string, value: number } | null>(null);
@@ -71,13 +73,12 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
       setSleepReport(report);
       onModeChange('sleep_summary');
     } else {
-      // Fallback if wakeUp returns null (shouldn't happen if sleeping)
       toggleSleep();
     }
   };
 
-  // SLEEP OVERLAY (Modified: Bypass for 'shop' and 'settings')
-  if (isSleeping && mode !== 'settings' && mode !== 'shop' && mode !== 'sleep_summary') {
+  // SLEEP OVERLAY
+  if (isSleeping && !['settings', 'shop', 'sleep_summary'].includes(mode)) {
      return (
        <div className="h-full bg-slate-950 p-4 flex flex-col items-center justify-center animate-pulse">
           <Moon size={48} className="text-blue-200 mb-4" />
@@ -123,6 +124,212 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
       );
   }
 
+  // --- BATTLE HUB ---
+  if (mode === 'battle_hub') {
+    return (
+        <div className="h-full bg-slate-900 p-4 flex flex-col gap-3">
+             <div className="flex justify-between items-center mb-2">
+                 <h3 className="font-bold text-red-400 flex items-center gap-2"><Sword size={20}/> Battle Hub</h3>
+                 <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
+             </div>
+             <p className="text-xs text-slate-400 text-center mb-2">เลือกโหมดการต่อสู้ที่ต้องการ</p>
+
+             <button
+                onClick={() => onModeChange('battle')}
+                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
+             >
+                 <div className="bg-red-900/50 p-3 rounded-full text-2xl">🥊</div>
+                 <div className="text-left">
+                     <h4 className="font-bold text-red-200">ประลอง (Arena)</h4>
+                     <p className="text-[10px] text-slate-400">สุ่มต่อสู้ 1-1 เพื่อเก็บเลเวลและเงิน</p>
+                 </div>
+             </button>
+
+             <button
+                onClick={() => onModeChange('explore')}
+                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
+             >
+                 <div className="bg-emerald-900/50 p-3 rounded-full text-2xl">🗺️</div>
+                 <div className="text-left">
+                     <h4 className="font-bold text-emerald-200">ผจญภัย (Adventure)</h4>
+                     <p className="text-[10px] text-slate-400">ออกสำรวจตามเส้นทาง ล่าวัตถุดิบและปราบบอส</p>
+                 </div>
+             </button>
+
+             <button
+                onClick={() => onModeChange('raid')}
+                className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center gap-4 transition-all"
+             >
+                 <div className="bg-purple-900/50 p-3 rounded-full text-2xl">👹</div>
+                 <div className="text-left">
+                     <h4 className="font-bold text-purple-200">ภัยพิบัติ (Raid Boss)</h4>
+                     <p className="text-[10px] text-slate-400">รวมพลังปราบบอสยักษ์ (Reset Daily)</p>
+                 </div>
+             </button>
+        </div>
+    );
+  }
+
+  // --- RAID MODE ---
+  if (mode === 'raid') {
+    // Determine Boss based on Day
+    const day = new Date().getDay(); // 0 = Sun, 1 = Mon, ...
+    let bossId = '';
+
+    // Mon/Thu = Terra (1, 4)
+    if (day === 1 || day === 4) bossId = 'raid_terra';
+    // Tue/Fri = Pyro (2, 5)
+    else if (day === 2 || day === 5) bossId = 'raid_pyro';
+    // Wed/Sat = Aqua (3, 6)
+    else if (day === 3 || day === 6) bossId = 'raid_aqua';
+    // Sun = Aero (0)
+    else bossId = 'raid_aero';
+
+    const boss = RAID_BOSSES[bossId];
+    const canRaid = raidTickets > 0;
+
+    const startRaid = () => {
+       if (canRaid) {
+           useGameStore.setState(state => ({ raidTickets: state.raidTickets - 1 }));
+           onModeChange('battle', { raidBossId: bossId }); // Pass custom param
+       }
+    };
+
+    return (
+        <div className="h-full bg-slate-900 p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-bold text-purple-400 flex items-center gap-2"><Skull size={20}/> Spirit Calamity</h3>
+                 <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
+             </div>
+
+             <div className="flex-1 flex flex-col items-center gap-6">
+                 {/* Boss Card */}
+                 <div className="w-full bg-slate-800 border-2 border-purple-500/50 rounded-xl p-6 text-center shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+                     <div className="text-6xl mb-4 animate-bounce">{boss?.emoji}</div>
+                     <h2 className="text-2xl font-black text-white mb-1 uppercase tracking-wider">{boss?.name}</h2>
+                     <div className="inline-block px-3 py-1 bg-purple-900/50 rounded-full text-xs text-purple-200 border border-purple-700">
+                         World Boss
+                     </div>
+                     <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-400">
+                         <div className="bg-slate-900/50 p-2 rounded">ATK {boss?.stats.atk}</div>
+                         <div className="bg-slate-900/50 p-2 rounded">DEF {boss?.stats.def}</div>
+                         <div className="bg-slate-900/50 p-2 rounded">HP ∞</div>
+                     </div>
+                 </div>
+
+                 {/* Stats & Ticket */}
+                 <div className="w-full grid grid-cols-2 gap-3">
+                     <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col items-center">
+                         <div className="text-xs text-slate-500 mb-1">Raid Tickets</div>
+                         <div className={`text-xl font-bold flex items-center gap-2 ${raidTickets > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                             <Ticket size={18} /> {raidTickets}/3
+                         </div>
+                     </div>
+                     <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex flex-col items-center">
+                         <div className="text-xs text-slate-500 mb-1">Spirit Tokens</div>
+                         <div className="text-xl font-bold text-yellow-400 flex items-center gap-2">
+                             💎 {spiritTokens}
+                         </div>
+                     </div>
+                 </div>
+
+                 <div className="w-full bg-slate-800/50 p-3 rounded-lg text-center">
+                     <div className="text-xs text-slate-400">Today's Total Damage</div>
+                     <div className="text-lg font-mono font-bold text-white">{totalRaidDamage.toLocaleString()}</div>
+                 </div>
+
+                 <button
+                    onClick={startRaid}
+                    disabled={!canRaid}
+                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-xl transition-all ${
+                        canRaid
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white hover:shadow-purple-900/50'
+                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    }`}
+                 >
+                     {canRaid ? 'START RAID' : 'No Tickets Remaining'}
+                 </button>
+             </div>
+        </div>
+    );
+  }
+
+  // --- EQUIPMENT ---
+  if (mode === 'equipment') {
+    const equippedItem = equippedItemId ? ITEMS[equippedItemId] : null;
+    const equipableItems = inventory.filter(i => i.item.type === 'equipment');
+
+    return (
+        <div className="h-full bg-slate-900 p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-bold text-amber-200 flex items-center gap-2"><Shield size={18}/> อุปกรณ์สวมใส่</h3>
+                 <button onClick={onReturnToIdle} className="text-xs underline text-slate-500">Close</button>
+             </div>
+
+             {/* Current Equipment Slot */}
+             <div className="bg-slate-800 rounded-xl p-4 flex items-center justify-between border border-slate-600 mb-4 shadow-lg">
+                 <div className="flex items-center gap-4">
+                     <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-3xl border-2 ${equippedItem ? 'bg-slate-700 border-amber-400' : 'bg-slate-900 border-slate-700 border-dashed'}`}>
+                         {equippedItem ? equippedItem.emoji : '🛡️'}
+                     </div>
+                     <div>
+                         <h4 className={`font-bold ${equippedItem ? 'text-white' : 'text-slate-500'}`}>
+                             {equippedItem ? equippedItem.name : 'ยังไม่สวมใส่'}
+                         </h4>
+                         {equippedItem && equippedItem.stats && (
+                             <div className="text-xs text-green-400 mt-1">
+                                 {Object.entries(equippedItem.stats).map(([stat, val]) => (
+                                     <span key={stat} className="mr-2 uppercase">{stat} +{val}</span>
+                                 ))}
+                             </div>
+                         )}
+                     </div>
+                 </div>
+                 {equippedItem && (
+                     <button
+                        onClick={() => unequipItem()}
+                        className="px-3 py-1 bg-red-900/30 text-red-400 text-xs rounded border border-red-900/50 hover:bg-red-900/50"
+                     >
+                         ถอดออก
+                     </button>
+                 )}
+             </div>
+
+             <h4 className="text-xs text-slate-400 mb-2 uppercase font-bold tracking-wider">Inventory</h4>
+             <div className="flex-1 overflow-y-auto space-y-2">
+                 {equipableItems.length === 0 ? (
+                     <div className="text-center text-slate-600 text-xs mt-10">ไม่มีอุปกรณ์ในกระเป๋า</div>
+                 ) : (
+                     equipableItems.map((slot, idx) => (
+                         <div key={idx} className="bg-slate-800 p-2 rounded-lg flex items-center justify-between border border-slate-700">
+                             <div className="flex items-center gap-3">
+                                 <div className="text-2xl bg-slate-700 w-10 h-10 flex items-center justify-center rounded-lg">
+                                     {slot.item.emoji}
+                                 </div>
+                                 <div>
+                                     <div className="font-bold text-slate-200 text-sm">{slot.item.name}</div>
+                                     <div className="text-[10px] text-slate-400">
+                                         {slot.item.stats && Object.entries(slot.item.stats).map(([k,v]) => `${k.toUpperCase()} +${v}`).join(', ')}
+                                     </div>
+                                 </div>
+                             </div>
+                             {slot.item.id !== equippedItemId && (
+                                 <button
+                                     onClick={() => equipItem(slot.item.id)}
+                                     className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded font-bold hover:bg-blue-500 shadow"
+                                 >
+                                     สวมใส่
+                                 </button>
+                             )}
+                         </div>
+                     ))
+                 )}
+             </div>
+        </div>
+    );
+  }
+
+  // --- IDLE MODE ---
   if (mode === 'idle') {
     if (!myMonster) return null;
     return (
@@ -164,6 +371,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- CARE MODE ---
   if (mode === 'care') {
     const poopCount = myMonster?.poopCount || 0;
     const canBath = myMonster && myMonster.vitals.energy >= 5 && myMonster.vitals.mood < 100;
@@ -181,7 +389,6 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
               <span className="text-[10px] text-yellow-400">-1 Gold</span>
            </button>
 
-           {/* Update Bath Button with Cost */}
            <button
              onClick={bathMonster}
              disabled={!canBath}
@@ -213,6 +420,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- BAG MODE ---
   if (mode === 'bag') {
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col">
@@ -233,7 +441,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // SHOP MODE
+  // --- SHOP MODE ---
   if (mode === 'shop') {
     const shopItems = Object.values(ITEMS).filter(item => item.price && item.price > 0);
     return (
@@ -268,6 +476,11 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
                                     })}
                                 </div>
                             )}
+                             {item.stats && (
+                                <div className="text-[9px] text-green-400 mt-1">
+                                    {Object.entries(item.stats).map(([k,v]) => `${k.toUpperCase()} +${v}`).join(' ')}
+                                </div>
+                            )}
                         </div>
                         <button
                             onClick={() => buyItem(item.id)}
@@ -296,6 +509,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- EVO MODE ---
   if (mode === 'evo') {
      if (!myMonster) return null;
      const baseName = myMonster.id.replace('starter_', '').replace('evo_', '').split('_')[0];
@@ -326,6 +540,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- TRAIN MODE ---
   if (mode === 'train') {
     if (!myMonster) return null;
     const canTrain = myMonster.vitals.energy >= 20;
@@ -370,23 +585,19 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  // --- BATTLE MODE (แก้ไขส่วน Result) ---
+  // --- BATTLE MODE ---
   if (mode === 'battle' && battleState) {
     const { logs, isActive, result, onFlee, onRestart, pauseBattle, resumeBattle, isPaused } = battleState;
 
-    // Logic ปุ่มจบการต่อสู้
     const handleBattleEnd = () => {
         if (result === 'win' && activeRouteId && explorationStep < 5) {
-            // ถ้าชนะ และยังไม่ถึงบอส (ด่าน < 5) -> ไปต่อ
-            onRestart(); // เริ่มสู้ใหม่ (StartBattle จะถูกเรียกอีกรอบ)
+            onRestart();
         } else {
-            // ถ้าแพ้ หรือ จบบอส -> กลับบ้าน
             resetExploration();
             onReturnToIdle();
         }
     };
 
-    // Logic Retreat
     const handleRetreat = () => {
         resetExploration();
         onReturnToIdle();
@@ -499,6 +710,7 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- SETTINGS MODE ---
   if (mode === 'settings') {
     return (
       <div className="h-full bg-slate-900 p-4 flex flex-col gap-4">
@@ -522,12 +734,12 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
+  // --- EXPLORE MODE ---
   if (mode === 'explore') {
     const { setActiveRoute } = useGameStore.getState();
 
     const handleSelectRoute = (routeId: string) => {
       setActiveRoute(routeId);
-      // Pass the routeId as a parameter to ensure the battle starts with this specific route immediately
       onModeChange('battle', { routeId });
     };
 
@@ -570,7 +782,8 @@ const ActionConsole: React.FC<ActionConsoleProps> = ({ mode, battleState, onRetu
     );
   }
 
-  return <div className="h-full bg-slate-900 p-4 text-center text-slate-500">Mode: {mode} (Unknown)</div>;
+  // Fallback for unknown mode or Raid (implemented in next step)
+  return <div className="h-full bg-slate-900 p-4 text-center text-slate-500">Mode: {mode} (Not implemented yet)</div>;
 };
 
 export default ActionConsole;

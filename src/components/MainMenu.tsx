@@ -33,7 +33,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStart }) => {
           )}
 
           <div className="text-center text-[10px] text-slate-600 mt-8">
-             v0.2.5 (Split-Screen Update)
+             v0.3.0 (Raid & Equipment)
           </div>
        </div>
     </div>
