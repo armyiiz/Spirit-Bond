@@ -1,5 +1,5 @@
 import React from 'react';
-import { Backpack, Sparkles, HeartHandshake, Dumbbell, Swords, Map, ShoppingCart, Settings } from 'lucide-react';
+import { Backpack, Sparkles, HeartHandshake, Dumbbell, Swords, Shield, ShoppingCart, Settings } from 'lucide-react';
 import { ConsoleMode } from './ActionConsole';
 
 interface TopNavigationProps {
@@ -9,10 +9,10 @@ interface TopNavigationProps {
 
 const TopNavigation: React.FC<TopNavigationProps> = ({ onModeChange, disabled }) => {
   const buttons = [
-    { id: 'battle', label: 'ต่อสู้', icon: Swords, color: 'text-red-400', target: 'battle' },
+    { id: 'battle', label: 'ต่อสู้', icon: Swords, color: 'text-red-400', target: 'battle_hub' },
     { id: 'train', label: 'ฝึกฝน', icon: Dumbbell, color: 'text-orange-400', target: 'train' },
     { id: 'care', label: 'ดูแล', icon: HeartHandshake, color: 'text-pink-400', target: 'care' },
-    { id: 'explore', label: 'สำรวจ', icon: Map, color: 'text-emerald-400', target: 'explore' },
+    { id: 'equipment', label: 'สวมใส่', icon: Shield, color: 'text-emerald-400', target: 'equipment' },
     { id: 'bag', label: 'กระเป๋า', icon: Backpack, color: 'text-amber-400', target: 'bag' },
     { id: 'shop', label: 'ร้านค้า', icon: ShoppingCart, color: 'text-blue-400', target: 'shop' },
     { id: 'evo', label: 'วิวัฒนาการ', icon: Sparkles, color: 'text-purple-400', target: 'evo' },

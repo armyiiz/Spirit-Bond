@@ -24,10 +24,16 @@ function App() {
 
   // Handle Navigation Logic
   const handleModeChange = (mode: ConsoleMode, params?: any) => {
+    if (mode === 'battle_hub') {
+      setConsoleMode('battle_hub');
+      return;
+    }
+
     if (mode === 'battle') {
       // If params has routeId, pass it to startBattle to fix "Ghost Route"
       const routeId = params?.routeId;
-      battle.startBattle(routeId);
+      const raidBossId = params?.raidBossId;
+      battle.startBattle(routeId, raidBossId);
       setConsoleMode('battle');
     } else {
       // If switching away from battle, we might need to pause/stop?
